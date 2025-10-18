@@ -1,31 +1,30 @@
 {
   "name": "vtop-chat-backend",
   "version": "1.0.0",
-  "description": "VTOP Chat Interface Backend with AI Intent Recognition",
+  "description": "VTOP Chat Interface Backend with AI Intent Recognition (Browserless)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "vercel-build": "echo 'Skipping build'"
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "vtop",
     "chat",
     "ai",
-    "playwright",
-    "gemini"
+    "gemini",
+    "browserless"
   ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.2.1",
-    "@sparticuz/chromium": "^119.0.2",
+    "axios": "^1.6.0",
+    "axios-cookiejar-support": "^5.0.2",
     "canvas": "^3.2.0",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
-    "playwright-core": "^1.40.0",
     "tough-cookie": "^5.1.2"
   },
   "devDependencies": {

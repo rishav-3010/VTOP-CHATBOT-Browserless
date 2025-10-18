@@ -3,11 +3,7 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "250mb",
-        "includeFiles": "node_modules/playwright-core/**"
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -19,11 +15,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "functions": {
-    "server.js": {
-      "memory": 3008,
-      "maxDuration": 60
-    }
-  }
+  ]
 }
