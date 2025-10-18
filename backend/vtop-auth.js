@@ -78,10 +78,6 @@ async function loginToVTOP(username, password) {
       
       if (!captchaBuffer) throw new Error('CAPTCHA not found');
       
-      const dir = path.join(__dirname, 'sample-captchas');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      fs.writeFileSync(path.join(dir, `captcha-${Date.now()}.png`), captchaBuffer);
-      
       const captcha = await solveUsingViboot(captchaBuffer);
       console.log('CAPTCHA solved:', captcha);
       
