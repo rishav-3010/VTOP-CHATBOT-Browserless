@@ -390,13 +390,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Only start server in development, not on Vercel
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🚀 VTOP Server running on port ${PORT}`);
-    console.log(`📱 Frontend: http://localhost:${PORT}`);
-  });
-}
-
-// Export for Vercel
-module.exports = app;
+app.listen(PORT, () => {
+  console.log(`🚀 VTOP Server running on port ${PORT}`);
+  console.log(`📱 Frontend: http://localhost:${PORT}`);
+});
