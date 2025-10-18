@@ -1,10 +1,19 @@
-const { client, getAuthData, getCached, setCached } = require('./vtop-auth');
+const { client, getAuthData } = require('./vtop-auth');
 const cheerio = require('cheerio');
 
-async function getCGPA(authData) {
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+function isCacheValid(session, key) {
+  if (!session?.cache?.[key]) return false;
+  return session.cache[key].data && (Date.now() - session.cache[key].timestamp) < CACHE_DURATION;
+}
+
+async function getCGPA(authData, session) {
   try {
-    const cached = getCached('cgpa');
-    if (cached) return cached;
+    if (isCacheValid(session, 'cgpa')) {
+      console.log('Cache hit: cgpa');
+      return session.cache.cgpa.data;
+    }
 
     console.log('Fetching CGPA...');
     
@@ -35,7 +44,10 @@ async function getCGPA(authData) {
       }
     });
     
-    setCached('cgpa', cgpaData);
+    if (session) {
+      session.cache.cgpa = { data: cgpaData, timestamp: Date.now() };
+      console.log('Cache set: cgpa');
+    }
     
     console.log('CGPA fetched');
     return cgpaData;
@@ -45,10 +57,12 @@ async function getCGPA(authData) {
   }
 }
 
-async function getAttendance(authData, semesterId = 'VL20252601') {
+async function getAttendance(authData, session, semesterId = 'VL20252601') {
   try {
-    const cached = getCached('attendance');
-    if (cached) return cached;
+    if (isCacheValid(session, 'attendance')) {
+      console.log('Cache hit: attendance');
+      return session.cache.attendance.data;
+    }
 
     console.log('Fetching Attendance...');
     
@@ -89,7 +103,10 @@ async function getAttendance(authData, semesterId = 'VL20252601') {
       }
     });
     
-    setCached('attendance', attendanceData);
+    if (session) {
+      session.cache.attendance = { data: attendanceData, timestamp: Date.now() };
+      console.log('Cache set: attendance');
+    }
     
     console.log('Attendance fetched');
     return attendanceData;
@@ -99,10 +116,12 @@ async function getAttendance(authData, semesterId = 'VL20252601') {
   }
 }
 
-async function getMarks(authData, semesterId = 'VL20252601') {
+async function getMarks(authData, session, semesterId = 'VL20252601') {
   try {
-    const cached = getCached('marks');
-    if (cached) return cached;
+    if (isCacheValid(session, 'marks')) {
+      console.log('Cache hit: marks');
+      return session.cache.marks.data;
+    }
 
     console.log('Fetching Marks...');
     
@@ -159,7 +178,10 @@ async function getMarks(authData, semesterId = 'VL20252601') {
       courses.push(course);
     }
     
-    setCached('marks', courses);
+    if (session) {
+      session.cache.marks = { data: courses, timestamp: Date.now() };
+      console.log('Cache set: marks');
+    }
     
     console.log('Marks fetched');
     return courses;
@@ -169,10 +191,12 @@ async function getMarks(authData, semesterId = 'VL20252601') {
   }
 }
 
-async function getAssignments(authData, semesterId = 'VL20252601') {
+async function getAssignments(authData, session, semesterId = 'VL20252601') {
   try {
-    const cached = getCached('assignments');
-    if (cached) return cached;
+    if (isCacheValid(session, 'assignments')) {
+      console.log('Cache hit: assignments');
+      return session.cache.assignments.data;
+    }
 
     console.log('Fetching Assignments...');
     
@@ -252,20 +276,27 @@ async function getAssignments(authData, semesterId = 'VL20252601') {
       }
     }
     
-    setCached('assignments', { subjects });
+    const assignmentsData = { subjects };
+    
+    if (session) {
+      session.cache.assignments = { data: assignmentsData, timestamp: Date.now() };
+      console.log('Cache set: assignments');
+    }
     
     console.log('Assignments fetched');
-    return { subjects };
+    return assignmentsData;
   } catch (error) {
     console.error('Assignments fetch error:', error.message);
     throw error;
   }
 }
 
-async function getLoginHistory(authData) {
+async function getLoginHistory(authData, session) {
   try {
-    const cached = getCached('loginHistory');
-    if (cached) return cached;
+    if (isCacheValid(session, 'loginHistory')) {
+      console.log('Cache hit: loginHistory');
+      return session.cache.loginHistory.data;
+    }
 
     console.log('Fetching Login History...');
     
@@ -303,7 +334,10 @@ async function getLoginHistory(authData) {
       }
     });
     
-    setCached('loginHistory', loginHistory);
+    if (session) {
+      session.cache.loginHistory = { data: loginHistory, timestamp: Date.now() };
+      console.log('Cache set: loginHistory');
+    }
     
     console.log('Login History fetched');
     return loginHistory;
@@ -313,10 +347,12 @@ async function getLoginHistory(authData) {
   }
 }
 
-async function getExamSchedule(authData, semesterId = 'VL20252601') {
+async function getExamSchedule(authData, session, semesterId = 'VL20252601') {
   try {
-    const cached = getCached('examSchedule');
-    if (cached) return cached;
+    if (isCacheValid(session, 'examSchedule')) {
+      console.log('Cache hit: examSchedule');
+      return session.cache.examSchedule.data;
+    }
 
     console.log('Fetching Exam Schedule...');
     
@@ -400,7 +436,10 @@ async function getExamSchedule(authData, semesterId = 'VL20252601') {
       }
     });
     
-    setCached('examSchedule', examSchedule);
+    if (session) {
+      session.cache.examSchedule = { data: examSchedule, timestamp: Date.now() };
+      console.log('Cache set: examSchedule');
+    }
     
     console.log('Exam Schedule fetched');
     return examSchedule;

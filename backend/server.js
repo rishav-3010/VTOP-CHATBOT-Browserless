@@ -24,7 +24,14 @@ function createSession() {
     isLoggedIn: false,
     conversationHistory: [],
     currentCredentials: {},
-    cacheData: {}
+    cache: {
+      cgpa: { data: null, timestamp: 0 },
+      attendance: { data: null, timestamp: 0 },
+      marks: { data: null, timestamp: 0 },
+      assignments: { data: null, timestamp: 0 },
+      loginHistory: { data: null, timestamp: 0 },
+      examSchedule: { data: null, timestamp: 0 }
+    }
   };
   return sessionId;
 }
@@ -271,15 +278,22 @@ app.post('/api/login', async (req, res) => {
     const { username, password, useDemo, sessionId } = req.body;
     
     let session = getSession(sessionId);
-if (!session) {
-  sessions[sessionId] = {
-    isLoggedIn: false,
-    conversationHistory: [],
-    currentCredentials: {},
-    cacheData: {}
-  };
-  session = sessions[sessionId];
-}
+    if (!session) {
+      sessions[sessionId] = {
+        isLoggedIn: false,
+        conversationHistory: [],
+        currentCredentials: {},
+        cache: {
+          cgpa: { data: null, timestamp: 0 },
+          attendance: { data: null, timestamp: 0 },
+          marks: { data: null, timestamp: 0 },
+          assignments: { data: null, timestamp: 0 },
+          loginHistory: { data: null, timestamp: 0 },
+          examSchedule: { data: null, timestamp: 0 }
+        }
+      };
+      session = sessions[sessionId];
+    }
     
     let loginUsername, loginPassword;
     
@@ -360,7 +374,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getcgpa':
         try {
           const authData = await getAuthData();
-          data = await getCGPA(authData);
+          data = await getCGPA(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your CGPA right now. Please try again.";
@@ -370,7 +384,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getattendance':
         try {
           const authData = await getAuthData();
-          data = await getAttendance(authData);
+          data = await getAttendance(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
@@ -380,7 +394,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getassignments':
         try {
           const authData = await getAuthData();
-          data = await getAssignments(authData);
+          data = await getAssignments(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your assignment data right now. Please try again.";
@@ -390,7 +404,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getmarks':
         try {
           const authData = await getAuthData();
-          data = await getMarks(authData);
+          data = await getMarks(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your marks right now. Please try again.";
@@ -400,7 +414,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getloginhistory':
         try {
           const authData = await getAuthData();
-          data = await getLoginHistory(authData);
+          data = await getLoginHistory(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your login history right now. Please try again.";
@@ -410,7 +424,7 @@ app.post('/api/chat', async (req, res) => {
       case 'getexamschedule':
         try {
           const authData = await getAuthData();
-          data = await getExamSchedule(authData);
+          data = await getExamSchedule(authData, session);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
@@ -466,7 +480,6 @@ app.post('/api/logout', async (req, res) => {
   
   res.json({ success: true });
 });
-
 
 // Serve React app
 app.get('*', (req, res) => {
