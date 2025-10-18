@@ -12,45 +12,38 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-let isLoggedIn = false;
-let currentCredentials = {
-  username: null,
-  password: null,
-  isDemo: false
-};
-
 const demoUsername = process.env.VTOP_USERNAME;
 const demoPassword = process.env.VTOP_PASSWORD;
 
-// Store conversation history per session
-let conversationHistory = [];
+const sessions = {}; // Store sessions separately
 const MAX_HISTORY = 10; // Keep last 10 messages for context
 
-function addToHistory(role, content) {
-  // Store with correct Gemini roles
-  const geminiRole = role === 'assistant' ? 'model' : 'user';
-  conversationHistory.push({ role: geminiRole, content });
-  
-  if (conversationHistory.length > MAX_HISTORY) {
-    conversationHistory.shift();
-  }
+function createSession() {
+  const sessionId = require('crypto').randomBytes(16).toString('hex');
+  sessions[sessionId] = {
+    isLoggedIn: false,
+    conversationHistory: [],
+    currentCredentials: {},
+    cacheData: {}
+  };
+  return sessionId;
 }
 
-function getRecentHistory() {
-  return conversationHistory.map(msg => ({
-    role: msg.role,
-    parts: [{ text: msg.content }]
-  }));
+function getSession(sessionId) {
+  return sessions[sessionId] || null;
 }
 
 // Intent recognition using AI
-async function recognizeIntent(message) {
+async function recognizeIntent(message, session) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
   // Get recent conversation history for context
-  const recentHistory = getRecentHistory();
+  const recentHistory = session.conversationHistory.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }]
+  }));
   
   const prompt = `
   You are an advanced intent classifier for a VTOP (VIT University portal) assistant.
@@ -109,13 +102,18 @@ async function recognizeIntent(message) {
     return 'general';
   }
 }
+
 // Response generation using AI
-async function generateResponse(intent, data, originalMessage) {
+async function generateResponse(intent, data, originalMessage, session) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
-  const recentHistory = getRecentHistory();
+  const recentHistory = session.conversationHistory.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }]
+  }));
+  
   let prompt = '';
   
   switch (intent) {
@@ -227,27 +225,27 @@ async function generateResponse(intent, data, originalMessage) {
       `;
       break;
 
-      default:
-  // If this is the first message (conversation just started), send context
-  if (conversationHistory.length <= 2) {
-    prompt = `
-      So u r a vtop chatbot.
-      right now u help functionalities to get help with
-      view cgpa, view marks, check da deadlines, check attendance, view login history
+    default:
+      // If this is the first message (conversation just started), send context
+      if (session.conversationHistory.length <= 2) {
+        prompt = `
+          So u r a vtop chatbot.
+          right now u help functionalities to get help with
+          view cgpa, view marks, check da deadlines, check attendance, view login history
 
-      this is user's msg: "${originalMessage}"
+          this is user's msg: "${originalMessage}"
 
-      answer it accordingly
-    `;
-  } else {
-    // For subsequent messages, just answer naturally with conversation context
-    prompt = `
-      The user asked: "${originalMessage}"
-      
-      Answer their question naturally, keeping the conversation going.
-    `;
-  }
-  break;
+          answer it accordingly
+        `;
+      } else {
+        // For subsequent messages, just answer naturally with conversation context
+        prompt = `
+          The user asked: "${originalMessage}"
+          
+          Answer their question naturally, keeping the conversation going.
+        `;
+      }
+      break;
   }
 
   try {
@@ -270,14 +268,25 @@ async function generateResponse(intent, data, originalMessage) {
 // ===== LOGIN ENDPOINT =====
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password, useDemo } = req.body;
+    const { username, password, useDemo, sessionId } = req.body;
+    
+    let session = getSession(sessionId);
+if (!session) {
+  sessions[sessionId] = {
+    isLoggedIn: false,
+    conversationHistory: [],
+    currentCredentials: {},
+    cacheData: {}
+  };
+  session = sessions[sessionId];
+}
     
     let loginUsername, loginPassword;
     
     if (useDemo) {
       loginUsername = demoUsername;
       loginPassword = demoPassword;
-      currentCredentials = {
+      session.currentCredentials = {
         username: loginUsername,
         password: loginPassword,
         isDemo: true
@@ -291,7 +300,7 @@ app.post('/api/login', async (req, res) => {
       }
       loginUsername = username;
       loginPassword = password;
-      currentCredentials = {
+      session.currentCredentials = {
         username: loginUsername,
         password: loginPassword,
         isDemo: false
@@ -301,11 +310,12 @@ app.post('/api/login', async (req, res) => {
     const success = await loginToVTOP(loginUsername, loginPassword);
     
     if (success) {
-      isLoggedIn = true;
+      session.isLoggedIn = true;
       res.json({ 
         success: true, 
-        isDemo: currentCredentials.isDemo,
-        message: 'Login successful'
+        isDemo: session.currentCredentials.isDemo,
+        message: 'Login successful',
+        sessionId: sessionId
       });
     } else {
       res.json({ 
@@ -322,17 +332,24 @@ app.post('/api/login', async (req, res) => {
 // ===== CHAT ENDPOINT =====
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, sessionId } = req.body;
+    const session = getSession(sessionId);
 
-    if (!isLoggedIn) {
+    if (!session || !session.isLoggedIn) {
       return res.json({ 
         response: "I'm not connected to VTOP right now. Please refresh the page to reconnect.",
         data: null 
       });
     }
-addToHistory('user', message);
+
+    // Add user message to session history
+    session.conversationHistory.push({ role: 'user', content: message });
+    if (session.conversationHistory.length > MAX_HISTORY) {
+      session.conversationHistory.shift();
+    }
+
     // Recognize intent
-    const intent = await recognizeIntent(message);
+    const intent = await recognizeIntent(message, session);
     console.log('Recognized intent:', intent);
 
     let data = null;
@@ -344,7 +361,7 @@ addToHistory('user', message);
         try {
           const authData = await getAuthData();
           data = await getCGPA(authData);
-          response = await generateResponse(intent, data, message);
+          response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your CGPA right now. Please try again.";
         }
@@ -354,57 +371,63 @@ addToHistory('user', message);
         try {
           const authData = await getAuthData();
           data = await getAttendance(authData);
-          response = await generateResponse(intent, data, message);
+          response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
         }
         break;
 
-        case 'getassignments':
+      case 'getassignments':
         try {
           const authData = await getAuthData();
           data = await getAssignments(authData);
-          response = await generateResponse(intent, data, message);
+          response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your assignment data right now. Please try again.";
         }
         break;
 
       case 'getmarks':
-      try {
-        const authData = await getAuthData();
-        data = await getMarks(authData);
-        response = await generateResponse(intent, data, message);
-      } catch (error) {
-        response = "Sorry, I couldn't fetch your marks right now. Please try again.";
-      }
-      break;
+        try {
+          const authData = await getAuthData();
+          data = await getMarks(authData);
+          response = await generateResponse(intent, data, message, session);
+        } catch (error) {
+          response = "Sorry, I couldn't fetch your marks right now. Please try again.";
+        }
+        break;
 
-    case 'getloginhistory':
-      try {
-        const authData = await getAuthData();
-        data = await getLoginHistory(authData);
-        response = await generateResponse(intent, data, message);
-      } catch (error) {
-        response = "Sorry, I couldn't fetch your login history right now. Please try again.";
-      }
-      break;
+      case 'getloginhistory':
+        try {
+          const authData = await getAuthData();
+          data = await getLoginHistory(authData);
+          response = await generateResponse(intent, data, message, session);
+        } catch (error) {
+          response = "Sorry, I couldn't fetch your login history right now. Please try again.";
+        }
+        break;
 
-    case 'getexamschedule':
-      try {
-        const authData = await getAuthData();
-        data = await getExamSchedule(authData);
-        response = await generateResponse(intent, data, message);
-      } catch (error) {
-        response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
-      }
-      break;
+      case 'getexamschedule':
+        try {
+          const authData = await getAuthData();
+          data = await getExamSchedule(authData);
+          response = await generateResponse(intent, data, message, session);
+        } catch (error) {
+          response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
+        }
+        break;
 
-       default:
-        response = await generateResponse(intent, null, message);
+      default:
+        response = await generateResponse(intent, null, message, session);
         break;
     }
-     addToHistory('assistant', response);
+
+    // Add assistant response to session history
+    session.conversationHistory.push({ role: 'model', content: response });
+    if (session.conversationHistory.length > MAX_HISTORY) {
+      session.conversationHistory.shift();
+    }
+
     res.json({ response, data });
 
   } catch (error) {
@@ -418,38 +441,32 @@ addToHistory('user', message);
 
 // ===== SESSION ENDPOINT =====
 app.get('/api/session', (req, res) => {
+  const sessionId = req.query.sessionId;
+  const session = getSession(sessionId);
+  
+  if (!session) {
+    return res.json({ isLoggedIn: false });
+  }
+  
   res.json({
-    isLoggedIn,
-    isDemo: currentCredentials.isDemo,
-    hasCredentials: !!currentCredentials.username
+    isLoggedIn: session.isLoggedIn,
+    isDemo: session.currentCredentials.isDemo,
+    hasCredentials: !!session.currentCredentials.username
   });
 });
 
 // ===== LOGOUT ENDPOINT =====
 app.post('/api/logout', async (req, res) => {
-  try {
-    conversationHistory = [];  // Clear conversation history
-
-    // Clear cache
-    const { getCached, setCached } = require('./vtop-auth');
-    setCached('cgpa', null);
-    setCached('attendance', null);
-    setCached('marks', null);
-    setCached('assignments', null);
-    setCached('loginHistory', null);
-    setCached('examSchedule', null);
-
-    isLoggedIn = false;
-    currentCredentials = {
-      username: null,
-      password: null,
-      isDemo: false
-    };
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  const { sessionId } = req.body;
+  const session = getSession(sessionId);
+  
+  if (session) {
+    delete sessions[sessionId];
   }
+  
+  res.json({ success: true });
 });
+
 
 // Serve React app
 app.get('*', (req, res) => {

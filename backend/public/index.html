@@ -229,22 +229,21 @@
                                         }, showPassword ? React.createElement(EyeOff) : React.createElement(Eye))
                                     ])
                                 ]),
-                                // ADD THIS PRIVACY NOTICE HERE
-                            React.createElement('div', { 
-                                className: "bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 mt-3",
-                                key: 'privacy-notice' 
-                            }, [
-                                React.createElement('div', { className: "flex items-start space-x-2" }, [
-                                    React.createElement('div', {}, [
-                                        React.createElement('p', { className: "font-medium mb-1" }, "🔒 Your Privacy is Protected"),
-                                        React.createElement('p', {}, "• Credentials used only for this session to connect to VTOP"),
-                                        React.createElement('p', {}, "• No passwords stored, saved, or logged anywhere"),
-                                        React.createElement('p', {}, "• All data cleared when you logout"),
-                                        React.createElement('p', {}, "• Your academic information is never stored or shared"),
-                                        React.createElement('p', {}, "• You can save credentials in your browser's password manager for convenience")
+                                React.createElement('div', { 
+                                    className: "bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 mt-3",
+                                    key: 'privacy-notice' 
+                                }, [
+                                    React.createElement('div', { className: "flex items-start space-x-2" }, [
+                                        React.createElement('div', {}, [
+                                            React.createElement('p', { className: "font-medium mb-1" }, "🔒 Your Privacy is Protected"),
+                                            React.createElement('p', {}, "• Credentials used only for this session to connect to VTOP"),
+                                            React.createElement('p', {}, "• No passwords stored, saved, or logged anywhere"),
+                                            React.createElement('p', {}, "• All data cleared when you logout"),
+                                            React.createElement('p', {}, "• Your academic information is never stored or shared"),
+                                            React.createElement('p', {}, "• You can save credentials in your browser's password manager for convenience")
+                                        ])
                                     ])
                                 ])
-                            ])
                             ] : [
                                 React.createElement('div', { 
                                     className: "bg-green-50 border border-green-200 rounded-lg p-4", 
@@ -293,7 +292,14 @@
             const [loginStatus, setLoginStatus] = useState('idle');
             const [isDemo, setIsDemo] = useState(false);
             const [showLoginForm, setShowLoginForm] = useState(true);
+            const [sessionId, setSessionId] = useState(null);
             const messagesEndRef = useRef(null);
+
+            useEffect(() => {
+                const sid = localStorage.getItem('sessionId') || Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('sessionId', sid);
+                setSessionId(sid);
+            }, []);
 
             const scrollToBottom = () => {
                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -322,7 +328,7 @@
                     const response = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(loginData)
+                        body: JSON.stringify({ ...loginData, sessionId })
                     });
                     
                     const result = await response.json();
@@ -367,7 +373,11 @@
 
             const handleLogout = async () => {
                 try {
-                    await fetch('/api/logout', { method: 'POST' });
+                    await fetch('/api/logout', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId })
+                    });
                     setIsLoggedIn(false);
                     setIsDemo(false);
                     setLoginStatus('idle');
@@ -406,7 +416,7 @@
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: inputValue })
+                        body: JSON.stringify({ message: inputValue, sessionId })
                     });
 
                     const result = await response.json();
