@@ -1,9 +1,12 @@
-const { client, getAuthData } = require('./vtop-auth');
+const { client, getAuthData, getCached, setCached } = require('./vtop-auth');
 const cheerio = require('cheerio');
 
 async function getCGPA(authData) {
   try {
-    console.log('📊 Fetching CGPA...');
+    const cached = getCached('cgpa');
+    if (cached) return cached;
+
+    console.log('Fetching CGPA...');
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
@@ -32,17 +35,22 @@ async function getCGPA(authData) {
       }
     });
     
-    console.log('✅ CGPA fetched');
+    setCached('cgpa', cgpaData);
+    
+    console.log('CGPA fetched');
     return cgpaData;
   } catch (error) {
-    console.error('❌ CGPA fetch error:', error.message);
+    console.error('CGPA fetch error:', error.message);
     throw error;
   }
 }
 
 async function getAttendance(authData, semesterId = 'VL20252601') {
   try {
-    console.log('📊 Fetching Attendance...');
+    const cached = getCached('attendance');
+    if (cached) return cached;
+
+    console.log('Fetching Attendance...');
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/processViewStudentAttendance',
@@ -81,17 +89,22 @@ async function getAttendance(authData, semesterId = 'VL20252601') {
       }
     });
     
-    console.log('✅ Attendance fetched');
+    setCached('attendance', attendanceData);
+    
+    console.log('Attendance fetched');
     return attendanceData;
   } catch (error) {
-    console.error('❌ Attendance fetch error:', error.message);
+    console.error('Attendance fetch error:', error.message);
     throw error;
   }
 }
 
 async function getMarks(authData, semesterId = 'VL20252601') {
   try {
-    console.log('📊 Fetching Marks...');
+    const cached = getCached('marks');
+    if (cached) return cached;
+
+    console.log('Fetching Marks...');
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView',
@@ -146,17 +159,22 @@ async function getMarks(authData, semesterId = 'VL20252601') {
       courses.push(course);
     }
     
-    console.log('✅ Marks fetched');
+    setCached('marks', courses);
+    
+    console.log('Marks fetched');
     return courses;
   } catch (error) {
-    console.error('❌ Marks fetch error:', error.message);
+    console.error('Marks fetch error:', error.message);
     throw error;
   }
 }
 
 async function getAssignments(authData, semesterId = 'VL20252601') {
   try {
-    console.log('📋 Fetching Assignments...');
+    const cached = getCached('assignments');
+    if (cached) return cached;
+
+    console.log('Fetching Assignments...');
     
     const subRes = await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment',
@@ -234,17 +252,22 @@ async function getAssignments(authData, semesterId = 'VL20252601') {
       }
     }
     
-    console.log('✅ Assignments fetched');
+    setCached('assignments', { subjects });
+    
+    console.log('Assignments fetched');
     return { subjects };
   } catch (error) {
-    console.error('❌ Assignments fetch error:', error.message);
+    console.error('Assignments fetch error:', error.message);
     throw error;
   }
 }
 
 async function getLoginHistory(authData) {
   try {
-    console.log('🕐 Fetching Login History...');
+    const cached = getCached('loginHistory');
+    if (cached) return cached;
+
+    console.log('Fetching Login History...');
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/show/login/history',
@@ -280,19 +303,23 @@ async function getLoginHistory(authData) {
       }
     });
     
-    console.log('✅ Login History fetched');
+    setCached('loginHistory', loginHistory);
+    
+    console.log('Login History fetched');
     return loginHistory;
   } catch (error) {
-    console.error('❌ Login History fetch error:', error.message);
+    console.error('Login History fetch error:', error.message);
     throw error;
   }
 }
 
 async function getExamSchedule(authData, semesterId = 'VL20252601') {
   try {
-    console.log('📅 Fetching Exam Schedule...');
+    const cached = getCached('examSchedule');
+    if (cached) return cached;
+
+    console.log('Fetching Exam Schedule...');
     
-    // Verify exam schedule access
     await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/StudExamSchedule',
       new URLSearchParams({
@@ -310,7 +337,6 @@ async function getExamSchedule(authData, semesterId = 'VL20252601') {
       }
     );
     
-    // Get exam schedule data
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent',
       new URLSearchParams({
@@ -374,10 +400,12 @@ async function getExamSchedule(authData, semesterId = 'VL20252601') {
       }
     });
     
-    console.log('✅ Exam Schedule fetched');
+    setCached('examSchedule', examSchedule);
+    
+    console.log('Exam Schedule fetched');
     return examSchedule;
   } catch (error) {
-    console.error('❌ Exam Schedule fetch error:', error.message);
+    console.error('Exam Schedule fetch error:', error.message);
     throw error;
   }
 }

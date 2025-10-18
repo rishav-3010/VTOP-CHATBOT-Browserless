@@ -22,15 +22,41 @@ let currentCredentials = {
 const demoUsername = process.env.VTOP_USERNAME;
 const demoPassword = process.env.VTOP_PASSWORD;
 
+// Store conversation history per session
+let conversationHistory = [];
+const MAX_HISTORY = 10; // Keep last 10 messages for context
+
+function addToHistory(role, content) {
+  // Store with correct Gemini roles
+  const geminiRole = role === 'assistant' ? 'model' : 'user';
+  conversationHistory.push({ role: geminiRole, content });
+  
+  if (conversationHistory.length > MAX_HISTORY) {
+    conversationHistory.shift();
+  }
+}
+
+function getRecentHistory() {
+  return conversationHistory.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }]
+  }));
+}
+
 // Intent recognition using AI
 async function recognizeIntent(message) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
+  // Get recent conversation history for context
+  const recentHistory = getRecentHistory();
+  
   const prompt = `
   You are an advanced intent classifier for a VTOP (VIT University portal) assistant.
-  Analyze the user's message and determine their primary intent.
+  Analyze the user's CURRENT message and determine their primary intent.
+  
+  Use the conversation history for context, but focus on what the user is asking NOW.
   
   Available functions:
   - getCGPA: CGPA queries, GPA questions, overall academic performance
@@ -48,9 +74,10 @@ async function recognizeIntent(message) {
   - Look for keywords: assignment, DA, deadline, upload, submission → getAssignments
   - Look for keywords: login history, session, access log, login records → getLoginHistory
   - Look for keywords: exam schedule, exam date, exam time, venue, seat → getExamSchedule
+  - If user says "yes" after bot suggested checking CGPA/marks/etc, infer that intent
   - Casual conversation, greetings, help → general
   
-  User message: "${message}"
+  User's current message: "${message}"
   
   Examples:
   - "What's my current CGPA?" → getCGPA
@@ -59,13 +86,22 @@ async function recognizeIntent(message) {
   - "Any pending DA submissions?" → getAssignments
   - "Show my login history" → getLoginHistory
   - "When's my exam schedule?" → getExamSchedule
+  - User: "How about CGPA?" Bot: "Sure!" User: "yes" → getCGPA (infer from context)
   - "Hello, how are you?" → general
   
   Respond with ONLY the function name. No explanations or additional text.
 `;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [
+        ...recentHistory,
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ]
+    });
     const intent = result.response.text().trim().toLowerCase();
     return intent;
   } catch (error) {
@@ -73,13 +109,13 @@ async function recognizeIntent(message) {
     return 'general';
   }
 }
-
 // Response generation using AI
 async function generateResponse(intent, data, originalMessage) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
+  const recentHistory = getRecentHistory();
   let prompt = '';
   
   switch (intent) {
@@ -136,8 +172,8 @@ async function generateResponse(intent, data, originalMessage) {
         Format the output like this:
         
         📚 [1] BCSE310L - IoT Architectures and Protocols
-           📝 CAT-1:  25/50  | Weight: 7.5/15
-           📝 Quiz-1: 10/10  | Weight: 10/10 
+           📝 CAT-1:  25/50  | Weightage: 7.5/15
+           📝 Quiz-1: 10/10  | Weightage: 10/10 
         (leave a line)
         📚 [2] BCSE312L - Programming for IoT Boards
            📝 Assessment-1: 10/20   | Weight: 5/10
@@ -192,19 +228,38 @@ async function generateResponse(intent, data, originalMessage) {
       break;
 
       default:
-      prompt = `
-        So u r a vtop chatbot.
-        right now u help functionalities to get help with
-        view cgpa, view marks, check da deadlines, check attendance, view login history
+  // If this is the first message (conversation just started), send context
+  if (conversationHistory.length <= 2) {
+    prompt = `
+      So u r a vtop chatbot.
+      right now u help functionalities to get help with
+      view cgpa, view marks, check da deadlines, check attendance, view login history
 
-        this is user's msg  "${originalMessage}"
+      this is user's msg: "${originalMessage}"
 
-        answer it accordingly
-      `;
+      answer it accordingly
+    `;
+  } else {
+    // For subsequent messages, just answer naturally with conversation context
+    prompt = `
+      The user asked: "${originalMessage}"
+      
+      Answer their question naturally, keeping the conversation going.
+    `;
+  }
+  break;
   }
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [
+        ...recentHistory,
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ]
+    });
     return result.response.text().trim();
   } catch (error) {
     console.error('Error generating response:', error);
@@ -275,7 +330,7 @@ app.post('/api/chat', async (req, res) => {
         data: null 
       });
     }
-
+addToHistory('user', message);
     // Recognize intent
     const intent = await recognizeIntent(message);
     console.log('Recognized intent:', intent);
@@ -349,7 +404,7 @@ app.post('/api/chat', async (req, res) => {
         response = await generateResponse(intent, null, message);
         break;
     }
-
+     addToHistory('assistant', response);
     res.json({ response, data });
 
   } catch (error) {
@@ -373,6 +428,17 @@ app.get('/api/session', (req, res) => {
 // ===== LOGOUT ENDPOINT =====
 app.post('/api/logout', async (req, res) => {
   try {
+    conversationHistory = [];  // Clear conversation history
+
+    // Clear cache
+    const { getCached, setCached } = require('./vtop-auth');
+    setCached('cgpa', null);
+    setCached('attendance', null);
+    setCached('marks', null);
+    setCached('assignments', null);
+    setCached('loginHistory', null);
+    setCached('examSchedule', null);
+
     isLoggedIn = false;
     currentCredentials = {
       username: null,

@@ -6,6 +6,34 @@ const fs = require('fs');
 const path = require('path');
 const { solveUsingViboot } = require('./captcha/captchaSolver');
 
+const cache = {
+  cgpa: { data: null, timestamp: 0 },
+  attendance: { data: null, timestamp: 0 },
+  marks: { data: null, timestamp: 0 },
+  assignments: { data: null, timestamp: 0 },
+  loginHistory: { data: null, timestamp: 0 },
+  examSchedule: { data: null, timestamp: 0 }
+};
+
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+function isCacheValid(key) {
+  return cache[key].data && (Date.now() - cache[key].timestamp) < CACHE_DURATION;
+}
+
+function getCached(key) {
+  if (isCacheValid(key)) {
+    console.log(`Cache hit: ${key}`);
+    return cache[key].data;
+  }
+  return null;
+}
+
+function setCached(key, data) {
+  cache[key] = { data, timestamp: Date.now() };
+  console.log(`Cache set: ${key}`);
+}
+
 const jar = new CookieJar();
 const client = wrapper(axios.create({
   jar,
@@ -169,5 +197,7 @@ module.exports = {
   loginToVTOP,
   getAuthData,
   makeAuthenticatedRequest,
-  client
+  client,
+  getCached,
+  setCached
 };
