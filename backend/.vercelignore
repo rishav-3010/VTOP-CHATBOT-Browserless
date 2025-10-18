@@ -1,0 +1,6 @@
+node_modules
+.env
+test-login-simple.js
+mock/
+sample-captchas/
+*.log
