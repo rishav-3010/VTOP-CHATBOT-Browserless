@@ -40,56 +40,43 @@ function getSession(sessionId) {
   return sessions[sessionId] || null;
 }
 
-// Intent recognition using AI
+// Intent recognition - NOW RETURNS ARRAY OF INTENTS
 async function recognizeIntent(message, session) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   
-  // Get recent conversation history for context
   const recentHistory = session.conversationHistory.map(msg => ({
     role: msg.role,
     parts: [{ text: msg.content }]
   }));
   
   const prompt = `
-  You are an advanced intent classifier for a VTOP (VIT University portal) assistant.
-  Analyze the user's CURRENT message and determine their primary intent.
-  
-  Use the conversation history for context, but focus on what the user is asking NOW.
+  You are an advanced intent classifier for a VTOP assistant.
+  Analyze the user's message and return ALL intents they're asking for.
   
   Available functions:
-  - getCGPA: CGPA queries, GPA questions, overall academic performance
-  - getAttendance: Attendance percentage, classes attended, debar status, attendance records
-  - getMarks: Marks, grades, scores, test results, exam performance, CAT marks, FAT marks
-  - getAssignments: Digital assignments, DA deadlines, assignment uploads, submission dates
-  - getLoginHistory: Login history, session history, login records, access logs
-  - getExamSchedule: Exam schedule, exam dates, exam timing, venue, seat number
-  - general: Greetings, help requests, general conversation, unclear requests
+  - getCGPA: CGPA queries
+  - getAttendance: Attendance percentage, classes attended
+  - getMarks: Marks, grades, scores, CAT/FAT marks
+  - getAssignments: Digital assignments, DA deadlines
+  - getLoginHistory: Login history, session records
+  - getExamSchedule: Exam schedule, dates, venue
+  - general: Greetings, help, unclear requests
   
-  Intent Detection Rules:
-  - Look for keywords: CGPA, GPA, grade point → getCGPA
-  - Look for keywords: attendance, classes, present, absent, debar → getAttendance  
-  - Look for keywords: marks, grades, scores, CAT, FAT, exam, test → getMarks
-  - Look for keywords: assignment, DA, deadline, upload, submission → getAssignments
-  - Look for keywords: login history, session, access log, login records → getLoginHistory
-  - Look for keywords: exam schedule, exam date, exam time, venue, seat → getExamSchedule
-  - If user says "yes" after bot suggested checking CGPA/marks/etc, infer that intent
-  - Casual conversation, greetings, help → general
+  IMPORTANT: 
+  - If user asks for multiple things, return ALL relevant intents
+  - Return as comma-separated list
+  - Examples:
+    * "Show my CGPA and attendance" → getCGPA,getAttendance
+    * "How am I doing this semester?" → getCGPA,getAttendance,getMarks
+    * "Check my marks and assignments" → getMarks,getAssignments
+    * "What's my CGPA?" → getCGPA
+    * "Give me a full overview" → getCGPA,getAttendance,getMarks,getAssignments
   
-  User's current message: "${message}"
+  User's message: "${message}"
   
-  Examples:
-  - "What's my current CGPA?" → getCGPA
-  - "How's my attendance looking?" → getAttendance  
-  - "Show me my CAT 1 marks" → getMarks
-  - "Any pending DA submissions?" → getAssignments
-  - "Show my login history" → getLoginHistory
-  - "When's my exam schedule?" → getExamSchedule
-  - User: "How about CGPA?" Bot: "Sure!" User: "yes" → getCGPA (infer from context)
-  - "Hello, how are you?" → general
-  
-  Respond with ONLY the function name. No explanations or additional text.
+  Respond with ONLY the function names, comma-separated. No explanations.
 `;
 
   try {
@@ -102,11 +89,18 @@ async function recognizeIntent(message, session) {
         }
       ]
     });
-    const intent = result.response.text().trim().toLowerCase();
-    return intent;
+    
+    const response = result.response.text().trim().toLowerCase();
+    
+    // Parse comma-separated intents
+    const intents = response.split(',').map(i => i.trim()).filter(i => i);
+    
+    console.log(`[Multi-Intent] Detected: ${intents.join(', ')}`);
+    
+    return intents.length > 0 ? intents : ['general'];
   } catch (error) {
     console.error('Error in intent recognition:', error);
-    return 'general';
+    return ['general'];
   }
 }
 
@@ -272,6 +266,92 @@ async function generateResponse(intent, data, originalMessage, session) {
   }
 }
 
+// NEW: Generate response with multiple data sources
+async function generateResponseMulti(intents, allData, originalMessage, session) {
+  const { GoogleGenerativeAI } = require("@google/generative-ai");
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  
+  const recentHistory = session.conversationHistory.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }]
+  }));
+  
+  // Build comprehensive data context
+  let dataContext = '';
+  
+  if (allData.cgpa) {
+    dataContext += `\nCGPA Data: ${JSON.stringify(allData.cgpa, null, 2)}`;
+  }
+  if (allData.attendance) {
+    dataContext += `\nAttendance Data: ${JSON.stringify(allData.attendance, null, 2)}`;
+  }
+  if (allData.marks) {
+    dataContext += `\nMarks Data: ${JSON.stringify(allData.marks, null, 2)}`;
+  }
+  if (allData.assignments) {
+    dataContext += `\nAssignments Data: ${JSON.stringify(allData.assignments, null, 2)}`;
+  }
+  if (allData.loginHistory) {
+    dataContext += `\nLogin History: ${JSON.stringify(allData.loginHistory, null, 2)}`;
+  }
+  if (allData.examSchedule) {
+    dataContext += `\nExam Schedule: ${JSON.stringify(allData.examSchedule, null, 2)}`;
+  }
+  
+  const prompt = `
+    The user asked: "${originalMessage}"
+    
+    You have access to multiple data sources:
+    ${dataContext}
+    
+    FORMATTING RULES:
+    
+    For CGPA: Show the value clearly with encouragement
+    
+    For Attendance: Format like:
+    📚 [Course Code] - [Course Name]
+      ✅ Attendance: [attended]/[total] classes
+      📊 Percentage: [xx%]
+      🚫 Debar Status: [status]
+    (leave a line between each course)
+    
+    For Marks: Format like:
+    📚 [1] [Course Code] - [Course Title]
+       📝 [Assessment]: [scored]/[max] | Weight: [weightage]/[percent]
+    (leave a line between each course)
+    
+    For Assignments: Format like:
+    📋 DIGITAL ASSIGNMENTS
+    ============================================================
+    📚 [1] [Course Code] - [Course Title]
+       📝 [1] [Assignment Title] - Due: [Date]
+    
+    IMPORTANT:
+    - Present ALL the data the user requested
+    - Organize it clearly with headers for each section
+    - Keep it concise but comprehensive
+    - Add a brief summary at the start if multiple data types
+    - Use emojis and proper spacing for readability
+  `;
+
+  try {
+    const result = await model.generateContent({
+      contents: [
+        ...recentHistory,
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ]
+    });
+    return result.response.text().trim();
+  } catch (error) {
+    console.error('Error generating response:', error);
+    return "I'm having trouble generating a response right now. Please try again.";
+  }
+}
+
 // ===== LOGIN ENDPOINT =====
 app.post('/api/login', async (req, res) => {
   try {
@@ -361,76 +441,122 @@ app.post('/api/chat', async (req, res) => {
       session.conversationHistory.shift();
     }
 
-    const intent = await recognizeIntent(message, session);
-    console.log(`[${sessionId}] Recognized intent:`, intent);
+    // Get MULTIPLE intents (array)
+    const intents = await recognizeIntent(message, session);
+    console.log(`[${sessionId}] Recognized intents:`, intents.join(', '));
 
-    let data = null;
+    let allData = {};
     let response = '';
 
-    switch (intent) {
-      case 'getcgpa':
-        try {
-          const authData = await getAuthData(sessionId);
-          data = await getCGPA(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
-        } catch (error) {
-          response = "Sorry, I couldn't fetch your CGPA right now. Please try again.";
-        }
-        break;
+    // Check if we need to fetch multiple data sources
+    const needsMultipleData = intents.length > 1 && !intents.includes('general');
 
-      case 'getattendance':
+    if (needsMultipleData) {
+      // PARALLEL EXECUTION of multiple functions
+      const authData = await getAuthData(sessionId);
+      
+      const promises = intents.map(async (intent) => {
         try {
-          const authData = await getAuthData(sessionId);
-          data = await getAttendance(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
+          switch (intent) {
+            case 'getcgpa':
+              allData.cgpa = await getCGPA(authData, session, sessionId);
+              break;
+            case 'getattendance':
+              allData.attendance = await getAttendance(authData, session, sessionId);
+              break;
+            case 'getmarks':
+              allData.marks = await getMarks(authData, session, sessionId);
+              break;
+            case 'getassignments':
+              allData.assignments = await getAssignments(authData, session, sessionId);
+              break;
+            case 'getloginhistory':
+              allData.loginHistory = await getLoginHistory(authData, session, sessionId);
+              break;
+            case 'getexamschedule':
+              allData.examSchedule = await getExamSchedule(authData, session, sessionId);
+              break;
+          }
         } catch (error) {
-          response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
+          console.error(`[${sessionId}] Error fetching ${intent}:`, error.message);
         }
-        break;
+      });
 
-      case 'getassignments':
-        try {
-          const authData = await getAuthData(sessionId);
-          data = await getAssignments(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
-        } catch (error) {
-          response = "Sorry, I couldn't fetch your assignment data right now. Please try again.";
-        }
-        break;
+      // Wait for all data to be fetched in parallel
+      await Promise.all(promises);
+      
+      // Generate comprehensive response with all data
+      response = await generateResponseMulti(intents, allData, message, session);
+      
+    } else {
+      // Single intent - use existing logic
+      const intent = intents[0];
+      
+      switch (intent) {
+        case 'getcgpa':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.cgpa = await getCGPA(authData, session, sessionId);
+            response = await generateResponse(intent, allData.cgpa, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your CGPA right now. Please try again.";
+          }
+          break;
 
-      case 'getmarks':
-        try {
-          const authData = await getAuthData(sessionId);
-          data = await getMarks(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
-        } catch (error) {
-          response = "Sorry, I couldn't fetch your marks right now. Please try again.";
-        }
-        break;
+        case 'getattendance':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.attendance = await getAttendance(authData, session, sessionId);
+            response = await generateResponse(intent, allData.attendance, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
+          }
+          break;
 
-      case 'getloginhistory':
-        try {
-          const authData = await getAuthData(sessionId);
-          data = await getLoginHistory(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
-        } catch (error) {
-          response = "Sorry, I couldn't fetch your login history right now. Please try again.";
-        }
-        break;
+        case 'getassignments':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.assignments = await getAssignments(authData, session, sessionId);
+            response = await generateResponse(intent, allData.assignments, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your assignment data right now. Please try again.";
+          }
+          break;
 
-      case 'getexamschedule':
-        try {
-          const authData = await getAuthData(sessionId);
-          data = await getExamSchedule(authData, session, sessionId);
-          response = await generateResponse(intent, data, message, session);
-        } catch (error) {
-          response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
-        }
-        break;
+        case 'getmarks':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.marks = await getMarks(authData, session, sessionId);
+            response = await generateResponse(intent, allData.marks, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your marks right now. Please try again.";
+          }
+          break;
 
-      default:
-        response = await generateResponse(intent, null, message, session);
-        break;
+        case 'getloginhistory':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.loginHistory = await getLoginHistory(authData, session, sessionId);
+            response = await generateResponse(intent, allData.loginHistory, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your login history right now. Please try again.";
+          }
+          break;
+
+        case 'getexamschedule':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.examSchedule = await getExamSchedule(authData, session, sessionId);
+            response = await generateResponse(intent, allData.examSchedule, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
+          }
+          break;
+
+        default:
+          response = await generateResponse(intent, null, message, session);
+          break;
+      }
     }
 
     session.conversationHistory.push({ role: 'model', content: response });
@@ -438,16 +564,17 @@ app.post('/api/chat', async (req, res) => {
       session.conversationHistory.shift();
     }
 
-    res.json({ response, data });
+    res.json({ response, data: allData });
 
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error(`[${sessionId}] Chat error:`, error);
     res.status(500).json({ 
       response: "I encountered an error processing your request. Please try again.",
       data: null 
     });
   }
 });
+
 // ===== SESSION ENDPOINT =====
 app.get('/api/session', (req, res) => {
   const sessionId = req.query.sessionId;
