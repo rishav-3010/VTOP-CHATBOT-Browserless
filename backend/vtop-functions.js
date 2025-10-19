@@ -1,4 +1,4 @@
-const { client, getAuthData } = require('./vtop-auth');
+const { getClient, getAuthData } = require('./vtop-auth');
 const cheerio = require('cheerio');
 
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -8,14 +8,15 @@ function isCacheValid(session, key) {
   return session.cache[key].data && (Date.now() - session.cache[key].timestamp) < CACHE_DURATION;
 }
 
-async function getCGPA(authData, session) {
+async function getCGPA(authData, session, sessionId) {
   try {
     if (isCacheValid(session, 'cgpa')) {
-      console.log('Cache hit: cgpa');
+      console.log(`[${sessionId}] Cache hit: cgpa`);
       return session.cache.cgpa.data;
     }
 
-    console.log('Fetching CGPA...');
+    console.log(`[${sessionId}] Fetching CGPA...`);
+    const client = getClient(sessionId);
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
@@ -46,25 +47,26 @@ async function getCGPA(authData, session) {
     
     if (session) {
       session.cache.cgpa = { data: cgpaData, timestamp: Date.now() };
-      console.log('Cache set: cgpa');
+      console.log(`[${sessionId}] Cache set: cgpa`);
     }
     
-    console.log('CGPA fetched');
+    console.log(`[${sessionId}] CGPA fetched for ${authData.authorizedID}`);
     return cgpaData;
   } catch (error) {
-    console.error('CGPA fetch error:', error.message);
+    console.error(`[${sessionId}] CGPA fetch error:`, error.message);
     throw error;
   }
 }
 
-async function getAttendance(authData, session, semesterId = 'VL20252601') {
+async function getAttendance(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'attendance')) {
-      console.log('Cache hit: attendance');
+      console.log(`[${sessionId}] Cache hit: attendance`);
       return session.cache.attendance.data;
     }
 
-    console.log('Fetching Attendance...');
+    console.log(`[${sessionId}] Fetching Attendance...`);
+    const client = getClient(sessionId);
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/processViewStudentAttendance',
@@ -105,25 +107,26 @@ async function getAttendance(authData, session, semesterId = 'VL20252601') {
     
     if (session) {
       session.cache.attendance = { data: attendanceData, timestamp: Date.now() };
-      console.log('Cache set: attendance');
+      console.log(`[${sessionId}] Cache set: attendance`);
     }
     
-    console.log('Attendance fetched');
+    console.log(`[${sessionId}] Attendance fetched for ${authData.authorizedID}`);
     return attendanceData;
   } catch (error) {
-    console.error('Attendance fetch error:', error.message);
+    console.error(`[${sessionId}] Attendance fetch error:`, error.message);
     throw error;
   }
 }
 
-async function getMarks(authData, session, semesterId = 'VL20252601') {
+async function getMarks(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'marks')) {
-      console.log('Cache hit: marks');
+      console.log(`[${sessionId}] Cache hit: marks`);
       return session.cache.marks.data;
     }
 
-    console.log('Fetching Marks...');
+    console.log(`[${sessionId}] Fetching Marks...`);
+    const client = getClient(sessionId);
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView',
@@ -180,25 +183,26 @@ async function getMarks(authData, session, semesterId = 'VL20252601') {
     
     if (session) {
       session.cache.marks = { data: courses, timestamp: Date.now() };
-      console.log('Cache set: marks');
+      console.log(`[${sessionId}] Cache set: marks`);
     }
     
-    console.log('Marks fetched');
+    console.log(`[${sessionId}] Marks fetched for ${authData.authorizedID}`);
     return courses;
   } catch (error) {
-    console.error('Marks fetch error:', error.message);
+    console.error(`[${sessionId}] Marks fetch error:`, error.message);
     throw error;
   }
 }
 
-async function getAssignments(authData, session, semesterId = 'VL20252601') {
+async function getAssignments(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'assignments')) {
-      console.log('Cache hit: assignments');
+      console.log(`[${sessionId}] Cache hit: assignments`);
       return session.cache.assignments.data;
     }
 
-    console.log('Fetching Assignments...');
+    console.log(`[${sessionId}] Fetching Assignments...`);
+    const client = getClient(sessionId);
     
     const subRes = await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment',
@@ -272,7 +276,7 @@ async function getAssignments(authData, session, semesterId = 'VL20252601') {
           });
         }
       } catch (error) {
-        console.log(`Warning: Could not fetch assignments for ${subject.courseCode}`);
+        console.log(`[${sessionId}] Warning: Could not fetch assignments for ${subject.courseCode}`);
       }
     }
     
@@ -280,25 +284,26 @@ async function getAssignments(authData, session, semesterId = 'VL20252601') {
     
     if (session) {
       session.cache.assignments = { data: assignmentsData, timestamp: Date.now() };
-      console.log('Cache set: assignments');
+      console.log(`[${sessionId}] Cache set: assignments`);
     }
     
-    console.log('Assignments fetched');
+    console.log(`[${sessionId}] Assignments fetched for ${authData.authorizedID}`);
     return assignmentsData;
   } catch (error) {
-    console.error('Assignments fetch error:', error.message);
+    console.error(`[${sessionId}] Assignments fetch error:`, error.message);
     throw error;
   }
 }
 
-async function getLoginHistory(authData, session) {
+async function getLoginHistory(authData, session, sessionId) {
   try {
     if (isCacheValid(session, 'loginHistory')) {
-      console.log('Cache hit: loginHistory');
+      console.log(`[${sessionId}] Cache hit: loginHistory`);
       return session.cache.loginHistory.data;
     }
 
-    console.log('Fetching Login History...');
+    console.log(`[${sessionId}] Fetching Login History...`);
+    const client = getClient(sessionId);
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/show/login/history',
@@ -336,25 +341,26 @@ async function getLoginHistory(authData, session) {
     
     if (session) {
       session.cache.loginHistory = { data: loginHistory, timestamp: Date.now() };
-      console.log('Cache set: loginHistory');
+      console.log(`[${sessionId}] Cache set: loginHistory`);
     }
     
-    console.log('Login History fetched');
+    console.log(`[${sessionId}] Login History fetched for ${authData.authorizedID}`);
     return loginHistory;
   } catch (error) {
-    console.error('Login History fetch error:', error.message);
+    console.error(`[${sessionId}] Login History fetch error:`, error.message);
     throw error;
   }
 }
 
-async function getExamSchedule(authData, session, semesterId = 'VL20252601') {
+async function getExamSchedule(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'examSchedule')) {
-      console.log('Cache hit: examSchedule');
+      console.log(`[${sessionId}] Cache hit: examSchedule`);
       return session.cache.examSchedule.data;
     }
 
-    console.log('Fetching Exam Schedule...');
+    console.log(`[${sessionId}] Fetching Exam Schedule...`);
+    const client = getClient(sessionId);
     
     await client.post(
       'https://vtop.vit.ac.in/vtop/examinations/StudExamSchedule',
@@ -438,13 +444,13 @@ async function getExamSchedule(authData, session, semesterId = 'VL20252601') {
     
     if (session) {
       session.cache.examSchedule = { data: examSchedule, timestamp: Date.now() };
-      console.log('Cache set: examSchedule');
+      console.log(`[${sessionId}] Cache set: examSchedule`);
     }
     
-    console.log('Exam Schedule fetched');
+    console.log(`[${sessionId}] Exam Schedule fetched for ${authData.authorizedID}`);
     return examSchedule;
   } catch (error) {
-    console.error('Exam Schedule fetch error:', error.message);
+    console.error(`[${sessionId}] Exam Schedule fetch error:`, error.message);
     throw error;
   }
 }

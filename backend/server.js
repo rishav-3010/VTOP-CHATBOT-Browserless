@@ -321,7 +321,8 @@ app.post('/api/login', async (req, res) => {
       };
     }
 
-    const success = await loginToVTOP(loginUsername, loginPassword);
+    // Pass sessionId to loginToVTOP
+    const success = await loginToVTOP(loginUsername, loginPassword, sessionId);
     
     if (success) {
       session.isLoggedIn = true;
@@ -342,7 +343,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
 // ===== CHAT ENDPOINT =====
 app.post('/api/chat', async (req, res) => {
   try {
@@ -356,25 +356,22 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Add user message to session history
     session.conversationHistory.push({ role: 'user', content: message });
     if (session.conversationHistory.length > MAX_HISTORY) {
       session.conversationHistory.shift();
     }
 
-    // Recognize intent
     const intent = await recognizeIntent(message, session);
-    console.log('Recognized intent:', intent);
+    console.log(`[${sessionId}] Recognized intent:`, intent);
 
     let data = null;
     let response = '';
 
-    // Execute appropriate function based on intent
     switch (intent) {
       case 'getcgpa':
         try {
-          const authData = await getAuthData();
-          data = await getCGPA(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getCGPA(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your CGPA right now. Please try again.";
@@ -383,8 +380,8 @@ app.post('/api/chat', async (req, res) => {
 
       case 'getattendance':
         try {
-          const authData = await getAuthData();
-          data = await getAttendance(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getAttendance(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
@@ -393,8 +390,8 @@ app.post('/api/chat', async (req, res) => {
 
       case 'getassignments':
         try {
-          const authData = await getAuthData();
-          data = await getAssignments(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getAssignments(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your assignment data right now. Please try again.";
@@ -403,8 +400,8 @@ app.post('/api/chat', async (req, res) => {
 
       case 'getmarks':
         try {
-          const authData = await getAuthData();
-          data = await getMarks(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getMarks(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your marks right now. Please try again.";
@@ -413,8 +410,8 @@ app.post('/api/chat', async (req, res) => {
 
       case 'getloginhistory':
         try {
-          const authData = await getAuthData();
-          data = await getLoginHistory(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getLoginHistory(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your login history right now. Please try again.";
@@ -423,8 +420,8 @@ app.post('/api/chat', async (req, res) => {
 
       case 'getexamschedule':
         try {
-          const authData = await getAuthData();
-          data = await getExamSchedule(authData, session);
+          const authData = await getAuthData(sessionId);
+          data = await getExamSchedule(authData, session, sessionId);
           response = await generateResponse(intent, data, message, session);
         } catch (error) {
           response = "Sorry, I couldn't fetch your exam schedule right now. Please try again.";
@@ -436,7 +433,6 @@ app.post('/api/chat', async (req, res) => {
         break;
     }
 
-    // Add assistant response to session history
     session.conversationHistory.push({ role: 'model', content: response });
     if (session.conversationHistory.length > MAX_HISTORY) {
       session.conversationHistory.shift();
@@ -452,7 +448,6 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 });
-
 // ===== SESSION ENDPOINT =====
 app.get('/api/session', (req, res) => {
   const sessionId = req.query.sessionId;
@@ -475,12 +470,14 @@ app.post('/api/logout', async (req, res) => {
   const session = getSession(sessionId);
   
   if (session) {
+    // Clean up the isolated browser session
+    const { destroySession } = require('./vtop-auth');
+    destroySession(sessionId);
     delete sessions[sessionId];
   }
   
   res.json({ success: true });
 });
-
 // Serve React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

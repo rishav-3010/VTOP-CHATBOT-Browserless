@@ -2,64 +2,59 @@ const axios = require('axios');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
 const cheerio = require('cheerio');
-const fs = require('fs');
-const path = require('path');
 const { solveUsingViboot } = require('./captcha/captchaSolver');
 
-const cache = {
-  cgpa: { data: null, timestamp: 0 },
-  attendance: { data: null, timestamp: 0 },
-  marks: { data: null, timestamp: 0 },
-  assignments: { data: null, timestamp: 0 },
-  loginHistory: { data: null, timestamp: 0 },
-  examSchedule: { data: null, timestamp: 0 }
-};
-
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-
-function isCacheValid(key) {
-  return cache[key].data && (Date.now() - cache[key].timestamp) < CACHE_DURATION;
-}
-
-function getCached(key) {
-  if (isCacheValid(key)) {
-    console.log(`Cache hit: ${key}`);
-    return cache[key].data;
-  }
-  return null;
-}
-
-function setCached(key, data) {
-  cache[key] = { data, timestamp: Date.now() };
-  console.log(`Cache set: ${key}`);
-}
-
-const jar = new CookieJar();
-const client = wrapper(axios.create({
-  jar,
-  withCredentials: true,
-  maxRedirects: 5,
-  validateStatus: () => true,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1'
-  }
-}));
-
-let globalCsrf = null;
-let globalAuthID = null;
+// Store separate clients per session
+const sessionClients = new Map();
 
 const getCsrf = (html) => {
   const $ = cheerio.load(html);
   return $('meta[name="_csrf"]').attr('content') || $('input[name="_csrf"]').val();
 };
 
-async function loginToVTOP(username, password) {
+// Create a new isolated client for each session
+function createSessionClient() {
+  const jar = new CookieJar();
+  const client = wrapper(axios.create({
+    jar,
+    withCredentials: true,
+    maxRedirects: 5,
+    validateStatus: () => true,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1'
+    }
+  }));
+
+  return {
+    client,
+    csrf: null,
+    authID: null
+  };
+}
+
+// Get or create session client
+function getSessionClient(sessionId) {
+  if (!sessionClients.has(sessionId)) {
+    sessionClients.set(sessionId, createSessionClient());
+  }
+  return sessionClients.get(sessionId);
+}
+
+// Clean up session
+function destroySession(sessionId) {
+  sessionClients.delete(sessionId);
+  console.log(`Session ${sessionId} destroyed`);
+}
+
+async function loginToVTOP(username, password, sessionId) {
   const MAX_CAPTCHA_ATTEMPTS = 3;
+  const sessionData = getSessionClient(sessionId);
+  const { client } = sessionData;
   
   for (let captchaAttempt = 1; captchaAttempt <= MAX_CAPTCHA_ATTEMPTS; captchaAttempt++) {
     try {
@@ -107,7 +102,7 @@ async function loginToVTOP(username, password) {
       if (!captchaBuffer) throw new Error('CAPTCHA not found');
       
       const captcha = await solveUsingViboot(captchaBuffer);
-      console.log('CAPTCHA solved:', captcha);
+      console.log(`[${sessionId}] CAPTCHA solved:`, captcha);
       
       const loginRes = await client.post(
         'https://vtop.vit.ac.in/vtop/login',
@@ -129,36 +124,36 @@ async function loginToVTOP(username, password) {
       const finalUrl = loginRes.request?.res?.responseUrl || loginRes.config.url;
       
       if (finalUrl.includes('/vtop/login/error')) {
-        console.log(`CAPTCHA incorrect (Attempt ${captchaAttempt}/${MAX_CAPTCHA_ATTEMPTS})`);
+        console.log(`[${sessionId}] CAPTCHA incorrect (Attempt ${captchaAttempt}/${MAX_CAPTCHA_ATTEMPTS})`);
         if (captchaAttempt < MAX_CAPTCHA_ATTEMPTS) {
           await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
         } else {
-          console.log('Login failed after max attempts');
+          console.log(`[${sessionId}] Login failed after max attempts`);
           return false;
         }
       }
       
       if (finalUrl.includes('/vtop/content') || finalUrl.includes('/vtop/student')) {
-        console.log('Login successful');
+        console.log(`[${sessionId}] Login successful`);
         
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const dashboardRes = await client.get('https://vtop.vit.ac.in/vtop/content');
         
-        globalCsrf = getCsrf(dashboardRes.data);
-        globalAuthID = dashboardRes.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
+        sessionData.csrf = getCsrf(dashboardRes.data);
+        sessionData.authID = dashboardRes.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
         
-        // console.log('Auth data extracted');
+        console.log(`[${sessionId}] Auth data extracted for ${sessionData.authID}`);
         
         return true;
       } else {
-        console.log('Unknown response');
+        console.log(`[${sessionId}] Unknown response`);
         return false;
       }
       
     } catch (error) {
-      console.error('Login error:', error.message);
+      console.error(`[${sessionId}] Login error:`, error.message);
       if (captchaAttempt >= MAX_CAPTCHA_ATTEMPTS) {
         return false;
       }
@@ -169,22 +164,25 @@ async function loginToVTOP(username, password) {
   return false;
 }
 
-async function getAuthData() {
-  if (globalCsrf && globalAuthID) {
-    return { csrfToken: globalCsrf, authorizedID: globalAuthID };
+async function getAuthData(sessionId) {
+  const sessionData = getSessionClient(sessionId);
+  
+  if (sessionData.csrf && sessionData.authID) {
+    return { csrfToken: sessionData.csrf, authorizedID: sessionData.authID };
   }
   
-  const res = await client.get('https://vtop.vit.ac.in/vtop/content');
-  globalCsrf = getCsrf(res.data);
-  globalAuthID = res.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
+  const res = await sessionData.client.get('https://vtop.vit.ac.in/vtop/content');
+  sessionData.csrf = getCsrf(res.data);
+  sessionData.authID = res.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
   
-  return { csrfToken: globalCsrf, authorizedID: globalAuthID };
+  return { csrfToken: sessionData.csrf, authorizedID: sessionData.authID };
 }
 
-async function makeAuthenticatedRequest(url, payload, headers = {}) {
-  const { csrfToken, authorizedID } = await getAuthData();
+async function makeAuthenticatedRequest(url, payload, sessionId, headers = {}) {
+  const { csrfToken, authorizedID } = await getAuthData(sessionId);
+  const sessionData = getSessionClient(sessionId);
   
-  return await client.post(url, payload, {
+  return await sessionData.client.post(url, payload, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'X-Requested-With': 'XMLHttpRequest',
@@ -193,11 +191,14 @@ async function makeAuthenticatedRequest(url, payload, headers = {}) {
   });
 }
 
+function getClient(sessionId) {
+  return getSessionClient(sessionId).client;
+}
+
 module.exports = {
   loginToVTOP,
   getAuthData,
   makeAuthenticatedRequest,
-  client,
-  getCached,
-  setCached
+  getClient,
+  destroySession
 };
