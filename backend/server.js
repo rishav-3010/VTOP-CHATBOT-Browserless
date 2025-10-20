@@ -56,23 +56,28 @@ async function recognizeIntent(message, session) {
   Analyze the user's message and return ALL intents they're asking for.
   
   Available functions:
-  - getCGPA: CGPA queries
-  - getAttendance: Attendance percentage, classes attended
-  - getMarks: Marks, grades, scores, CAT/FAT marks
-  - getAssignments: Digital assignments, DA deadlines
+  - getCGPA: CGPA queries, semester reports, overall performance
+  - getAttendance: Attendance percentage, classes attended, debarment risk
+  - getMarks: Marks, grades, scores, CAT/FAT marks, best/worst subjects
+  - getAssignments: Digital assignments, DA deadlines, urgent tasks
   - getLoginHistory: Login history, session records
   - getExamSchedule: Exam schedule, dates, venue
   - general: Greetings, help, unclear requests
   
   IMPORTANT: 
   - If user asks for multiple things, return ALL relevant intents
+  - "Semester report" or "complete overview" = getCGPA,getAttendance,getMarks,getAssignments
+  - "Which subject has lowest/highest X" = getMarks or getAttendance (based on context)
+  - Subject-specific queries still return the main intent (marks/attendance)
   - Return as comma-separated list
-  - Examples:
-    * "Show my CGPA and attendance" → getCGPA,getAttendance
-    * "How am I doing this semester?" → getCGPA,getAttendance,getMarks
-    * "Check my marks and assignments" → getMarks,getAssignments
-    * "What's my CGPA?" → getCGPA
-    * "Give me a full overview" → getCGPA,getAttendance,getMarks,getAssignments
+  
+  Examples:
+    * "Show semester report" → getCGPA,getAttendance,getMarks,getAssignments
+    * "Which subject am I worst at?" → getMarks
+    * "Show attendance and marks" → getAttendance,getMarks
+    * "Am I at risk of debarment?" → getAttendance
+    * "Which deadline is urgent?" → getAssignments
+    * "Show marks for IoT Boards" → getMarks
   
   User's message: "${message}"
   
@@ -133,73 +138,92 @@ async function generateResponse(intent, data, originalMessage, session) {
         The user asked: "${originalMessage}"
         Here's their attendance data: ${JSON.stringify(data, null, 2)}
         
-        Format the output like this style:
-
-    📚 [Course Code] - [Course Name]
-      ✅ Attendance: [attended]/[total] classes
-      📊 Percentage: [xx%]
-      🚫 Debar Status: [status]
-
-      Only output in this structured multi-line format, no extra explanation.
+        Create a markdown table with these columns:
+        | Course Code | Course Name | Attended/Total | Percentage | Debar Status |
+        
+        Fill the table with the attendance data.
+        
+        After the table, add an Analysis section with:
+        - Summary of overall attendance
+        - Courses with concerning attendance (below 75%)
+        - Any urgent concerns about debar status
+        
+        Use markdown formatting (bold, emphasis) for important points.
       `;
       break;
       
     case 'getassignments':
-      prompt = `
-        The user asked: "${originalMessage}"
-        Here's their assignments data: ${JSON.stringify(data, null, 2)}
-        
-        Format the output EXACTLY like this structure:
-        
-        📋 DIGITAL ASSIGNMENTS
-        ============================================================
-        📚 [1] BCSE310L - IoT Architectures and Protocols
-           📝 [1] Course Project - Due: 25-Sep-2025
-        
-        📚 [2] BCSE312L - Programming for IoT Boards
-           📝 [1] Course Based Design Project - Due: 07-Nov-2025
-        
-        Use the exact field names from JSON and follow this format precisely.
-      `;
-      break;
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their assignments data: ${JSON.stringify(data, null, 2)}
+    
+    Format assignments as SEPARATE tables for each course:
+    
+    For each course, create:
+    ### Course Name (Course Code)
+    | Assignment | Due Date | Days Left |
+    |------------|----------|-----------|
+    | Assessment - 1 | 22-Sep-2025 | X days |
+    | Assessment - 2 | 31-Oct-2025 | Y days |
+    
+    Calculate days left from today (you know the current date: October 21, 2025).
+    - If past due: show "X days overdue" or "Overdue"
+    - If due today: show "Due today!"
+    - If upcoming: show "X days left"
+    
+    Then add a Summary section with:
+    - Total assignments across all courses
+    - ⚠️ Overdue assignments (if any)
+    - 🔥 Urgent deadlines (within 3-7 days)
+    - Course with most assignments
+    
+    Use emojis and markdown formatting for emphasis on urgent items.
+  `;
+  break;  
 
     case 'getmarks':
-      prompt = `
-        The user asked: "${originalMessage}"
-        Here's their marks data: ${JSON.stringify(data, null, 2)}
-        
-        Format the output like this:
-        
-        📚 [1] BCSE310L - IoT Architectures and Protocols
-           📝 CAT-1:  25/50  | Weightage: 7.5/15
-           📝 Quiz-1: 10/10  | Weightage: 10/10 
-        (leave a line)
-        📚 [2] BCSE312L - Programming for IoT Boards
-           📝 Assessment-1: 10/20   | Weight: 5/10
-        
-        FIELD MAPPING:
-        - Use course.slNo for numbering [1], [2], etc.
-        - Use course.courseCode - course.courseTitle for subject line
-        - Use course.marks[].title for assessment name
-        - Format: course.marks[].scored/course.marks[].max  | Weight: course.marks[].weightage/course.marks[].percent
-        
-        Keep it concise - no extra text.
-      `;
-      break;
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their marks data: ${JSON.stringify(data, null, 2)}
+    
+    Format marks as SEPARATE tables for each subject/course:
+    
+    For each course, create:
+    ### Course Name (Course Code)
+    | Assessment | Scored | Maximum | Weightage | Weightage% |
+    |------------|--------|---------|-----------| -----------|
+    | CAT-1      | X      | Y       | Z         | Z%         |
+    | Assignment | X      | Y       | Z         | Z%         |
+    
+    After each course table, add a line showing:
+    **Course Total: X/Y (Z%)**
+    
+    Then add an overall Analysis section with:
+    - Overall performance summary across all subjects
+    - Best performing courses (70%+)
+    - Courses needing attention (below 60%)
+    - Recommendations
+    
+    Use markdown formatting (bold headers, emphasis for important insights).
+  `;
+  break;
 
     case 'getloginhistory':
       prompt = `
         The user asked: "${originalMessage}"
         Here's their login history data: ${JSON.stringify(data, null, 2)}
         
-        Format the output like this:
+        Format as a markdown table with columns:
+        | Date | Time | IP Address | Status |
         
-        🕐 LOGIN HISTORY
-        ============================================================
+        Fill in the login history data.
         
-        [Display the login history in a clean, tabular format]
+        Then add a summary with:
+        - Total logins
+        - Most recent login
+        - Any suspicious activity (if applicable)
         
-        Keep it simple and organized.
+        Use markdown formatting for clarity.
       `;
       break;
 
@@ -208,45 +232,46 @@ async function generateResponse(intent, data, originalMessage, session) {
         The user asked: "${originalMessage}"
         Here's their exam schedule data: ${JSON.stringify(data, null, 2)}
         
-        Format the output like this:
+        Create separate markdown tables for each exam type (FAT, CAT1, CAT2) with columns:
+        | Course Code | Course Title | Date | Time | Venue | Seat No |
         
-        📅 EXAM SCHEDULE
-        ============================================================
+        Then add a summary section with:
+        - Exam dates timeline
+        - Reporting times
+        - Important reminders
         
-        🎯 FAT EXAMS:
-        [1] BCSE310L - IoT Architectures
-            📅 Date: 15-Nov-2025 | Session: FN
-            ⏰ Time: 09:00 AM - 12:00 PM | Reporting: 08:30 AM
-            🏢 Venue: Lab Block A | Seat: A-25
-        
-        🎯 CAT1 EXAMS:
-        [Similar format]
-        
-        Keep it organized by exam type.(leave a line after every subject and exam)
+        Use markdown formatting (bold headers, emphasis for important dates).
       `;
       break;
 
     default:
-      // If this is the first message (conversation just started), send context
-      if (session.conversationHistory.length <= 2) {
-        prompt = `
-          So u r a vtop chatbot.
-          right now u help functionalities to get help with
-          view cgpa, view marks, check da deadlines, check attendance, view login history
-
-          this is user's msg: "${originalMessage}"
-
-          answer it accordingly
-        `;
-      } else {
-        // For subsequent messages, just answer naturally with conversation context
-        prompt = `
-          The user asked: "${originalMessage}"
-          
-          Answer their question naturally, keeping the conversation going.
-        `;
-      }
-      break;
+  // If this is the first message (conversation just started), send context
+  if (session.conversationHistory.length <= 2) {
+    prompt = `
+      You are a VTOP chatbot assistant for VIT students.
+      
+      You can help with:
+      - View CGPA and semester reports
+      - Check marks and identify best/worst performing subjects
+      - Monitor attendance and debarment risk
+      - Track assignment deadlines
+      - View exam schedules
+      
+      This is the user's message: "${originalMessage}"
+      
+      Answer warmly and guide them on what you can help with.
+    `;
+  } else {
+    // For subsequent messages, answer with context
+    prompt = `
+      The user asked: "${originalMessage}"
+      
+      Based on our conversation, answer their question naturally.
+      If they're asking comparative questions like "which subject is worst" or "what needs attention",
+      acknowledge that you can fetch that data for them and ask if they'd like you to show it.
+    `;
+  }
+  break;     
   }
 
   try {
@@ -265,8 +290,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     return "I'm having trouble generating a response right now. Please try again.";
   }
 }
-
-// NEW: Generate response with multiple data sources
+// Generate response with multiple data sources
 async function generateResponseMulti(intents, allData, originalMessage, session) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -277,63 +301,61 @@ async function generateResponseMulti(intents, allData, originalMessage, session)
     parts: [{ text: msg.content }]
   }));
   
-  // Build comprehensive data context
+  // Build comprehensive data context and prompts based on intents
   let dataContext = '';
+  let promptSections = [];
   
-  if (allData.cgpa) {
+  // CGPA
+  if (allData.cgpa && intents.includes('getcgpa')) {
     dataContext += `\nCGPA Data: ${JSON.stringify(allData.cgpa, null, 2)}`;
-  }
-  if (allData.attendance) {
-    dataContext += `\nAttendance Data: ${JSON.stringify(allData.attendance, null, 2)}`;
-  }
-  if (allData.marks) {
-    dataContext += `\nMarks Data: ${JSON.stringify(allData.marks, null, 2)}`;
-  }
-  if (allData.assignments) {
-    dataContext += `\nAssignments Data: ${JSON.stringify(allData.assignments, null, 2)}`;
-  }
-  if (allData.loginHistory) {
-    dataContext += `\nLogin History: ${JSON.stringify(allData.loginHistory, null, 2)}`;
-  }
-  if (allData.examSchedule) {
-    dataContext += `\nExam Schedule: ${JSON.stringify(allData.examSchedule, null, 2)}`;
+    promptSections.push(`For CGPA: Generate a friendly, encouraging response about their CGPA. Keep it conversational and positive. Include the CGPA value and maybe a motivational comment.`);
   }
   
-  const prompt = `
-    The user asked: "${originalMessage}"
-    
-    You have access to multiple data sources:
-    ${dataContext}
-    
-    FORMATTING RULES:
-    
-    For CGPA: Show the value clearly with encouragement
-    
-    For Attendance: Format like:
-    📚 [Course Code] - [Course Name]
-      ✅ Attendance: [attended]/[total] classes
-      📊 Percentage: [xx%]
-      🚫 Debar Status: [status]
-    (leave a line between each course)
-    
-    For Marks: Format like:
-    📚 [1] [Course Code] - [Course Title]
-       📝 [Assessment]: [scored]/[max] | Weight: [weightage]/[percent]
-    (leave a line between each course)
-    
-    For Assignments: Format like:
-    📋 DIGITAL ASSIGNMENTS
-    ============================================================
-    📚 [1] [Course Code] - [Course Title]
-       📝 [1] [Assignment Title] - Due: [Date]
-    
-    IMPORTANT:
-    - Present ALL the data the user requested
-    - Organize it clearly with headers for each section
-    - Keep it concise but comprehensive
-    - Add a brief summary at the start if multiple data types
-    - Use emojis and proper spacing for readability
-  `;
+  // Attendance
+  if (allData.attendance && intents.includes('getattendance')) {
+    dataContext += `\nAttendance Data: ${JSON.stringify(allData.attendance, null, 2)}`;
+    promptSections.push(`For Attendance: Create a markdown table with these columns: | Course Code | Course Name | Attended/Total | Percentage | Debar Status |. Fill the table with the attendance data. After the table, add an Analysis section with: Summary of overall attendance, Courses with concerning attendance (below 75%), Any urgent concerns about debar status. Use markdown formatting (bold, emphasis) for important points.`);
+  }
+  
+  // Assignments
+if (allData.assignments && intents.includes('getassignments')) {
+  dataContext += `\nAssignments Data: ${JSON.stringify(allData.assignments, null, 2)}`;
+  promptSections.push(`For Assignments: Create SEPARATE tables for each course. Format: ### Course Name (Code), then table with columns: | Assignment | Due Date | Days Left |. Calculate days from today (Oct 21, 2025). Show "X days overdue" if past, "Due today!" if today, "X days left" if upcoming. Then summary with overdue and urgent deadlines (3-7 days).`);
+}
+  
+  // Marks
+if (allData.marks && intents.includes('getmarks')) {
+  dataContext += `\nMarks Data: ${JSON.stringify(allData.marks, null, 2)}`;
+  promptSections.push(`For Marks: Create SEPARATE tables for each subject. Format: ### Course Name (Code), then table with columns: | Assessment | Scored | Maximum | Weightage | Weightage% |. Add course total after each table. Then overall analysis with best/worst performing courses and recommendations.`);
+}
+  
+  // Login History
+  if (allData.loginHistory && intents.includes('getloginhistory')) {
+    dataContext += `\nLogin History: ${JSON.stringify(allData.loginHistory, null, 2)}`;
+    promptSections.push(`For Login History: Format as a markdown table with columns: | Date | Time | IP Address | Status |. Fill in the login history data. Then add a summary with: Total logins, Most recent login, Any suspicious activity (if applicable). Use markdown formatting for clarity.`);
+  }
+  
+  // Exam Schedule
+  if (allData.examSchedule && intents.includes('getexamschedule')) {
+    dataContext += `\nExam Schedule: ${JSON.stringify(allData.examSchedule, null, 2)}`;
+    promptSections.push(`For Exam Schedule: Create separate markdown tables for each exam type (FAT, CAT1, CAT2) with columns: | Course Code | Course Title | Date | Time | Venue | Seat No |. Then add a summary section with: Exam dates timeline, Reporting times, Important reminders. Use markdown formatting (bold headers, emphasis for important dates).`);
+  }
+  
+  // Build the final prompt
+  let prompt = `The user asked: "${originalMessage}"
+
+You have access to multiple data sources:
+${dataContext}
+
+FORMATTING INSTRUCTIONS:
+${promptSections.join('\n')}
+
+IMPORTANT:
+- Present ALL the data the user requested
+- Organize it clearly with headers for each section
+- Keep it concise but comprehensive
+- Add a brief summary at the start if multiple data types
+- Use proper formatting for readability`;
 
   try {
     const result = await model.generateContent({

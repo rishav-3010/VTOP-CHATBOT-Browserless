@@ -4,11 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VTOP Assistant - Academic Chat Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.suggestion-button {
+    animation: fadeIn 0.3s ease-out;
+}
+       .markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(203, 213, 225, 0.4);
+}
+.markdown-content th {
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.08));
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(148, 163, 184, 0.2);
+  color: #1e293b;
+}
+.markdown-content td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.markdown-content tr:last-child td {
+  border-bottom: none;
+}
+.markdown-content tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+.markdown-content h2, .markdown-content h3 {
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.markdown-content ul, .markdown-content ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+.markdown-content p {
+  margin: 8px 0;
+}
+.markdown-content code {
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
@@ -466,13 +520,99 @@
             };
 
             const formatMessage = (message) => {
-                return React.createElement('div', { 
-                    className: "whitespace-pre-wrap font-sans text-sm leading-relaxed",
-                    style: { fontFamily: 'inherit' }
-                }, message.content);
-            };
+  const htmlContent = marked.parse(message.content || '');
+  return React.createElement('div', { 
+    className: "markdown-content text-sm leading-relaxed",
+    dangerouslySetInnerHTML: { __html: htmlContent }
+  });
+};
 
-            if (showLoginForm) {
+            const getDynamicSuggestions = () => {
+    // If no messages or just logged in, show default suggestions
+    if (messages.length <= 2) {
+        return [
+            { text: "What's my CGPA?", icon: GraduationCap },
+            { text: "Show my attendance", icon: Calendar },
+            { text: "Get my marks", icon: BarChart3 },
+            { text: "Show my assignments", icon: BookOpen }
+        ];
+    }
+
+    // Get last bot message to determine context
+    const lastBotMessage = [...messages].reverse().find(m => m.type === 'bot' && !m.loading);
+    if (!lastBotMessage) return [];
+
+    const lastContent = lastBotMessage.content.toLowerCase();
+
+    // Extract subject names mentioned (look for course codes like BCSE312P or full names)
+    const subjectMentioned = lastContent.match(/(?:bcse\d{3}[a-z]?|programming|iot|security|privacy|design|fog|edge)/i);
+    const subjectName = subjectMentioned ? subjectMentioned[0] : null;
+
+    // Context-based suggestions
+    if (lastContent.includes('cgpa') || lastContent.includes('grade')) {
+        return [
+            { text: "Show my semester report", icon: GraduationCap },
+            { text: "Which subject has my lowest marks?", icon: BarChart3 },
+            { text: "Show attendance and marks together", icon: Calendar }
+        ];
+    }
+    
+    if (lastContent.includes('attendance') || lastContent.includes('classes')) {
+        if (subjectName) {
+            return [
+                { text: `Show marks for ${subjectName}`, icon: BarChart3 },
+                { text: "Which course needs most attention?", icon: Calendar },
+                { text: "Give me a complete overview", icon: GraduationCap }
+            ];
+        }
+        return [
+            { text: "Which course has lowest attendance?", icon: Calendar },
+            { text: "Show marks and assignments", icon: BarChart3 },
+            { text: "Am I at risk of debarment?", icon: Calendar }
+        ];
+    }
+    
+    if (lastContent.includes('marks') || lastContent.includes('score') || lastContent.includes('assessment')) {
+        if (subjectName) {
+            return [
+                { text: `Show attendance for ${subjectName}`, icon: Calendar },
+                { text: `Assignments for ${subjectName}`, icon: BookOpen },
+                { text: "Compare with other subjects", icon: BarChart3 }
+            ];
+        }
+        return [
+            { text: "Which subject am I performing best in?", icon: BarChart3 },
+            { text: "Show attendance and CGPA", icon: Calendar },
+            { text: "Upcoming deadlines", icon: BookOpen }
+        ];
+    }
+    
+    if (lastContent.includes('assignment') || lastContent.includes('deadline')) {
+        return [
+            { text: "Show marks for these subjects", icon: BarChart3 },
+            { text: "Which deadline is most urgent?", icon: BookOpen },
+            { text: "Give me my semester overview", icon: GraduationCap }
+        ];
+    }
+
+    if (lastContent.includes('report') || lastContent.includes('overview') || lastContent.includes('summary')) {
+        return [
+            { text: "Which area needs improvement?", icon: BarChart3 },
+            { text: "Show detailed marks breakdown", icon: BarChart3 },
+            { text: "Upcoming assignments only", icon: BookOpen }
+        ];
+    }
+
+    // Default fallback suggestions with multi-intent
+    return [
+        { text: "Show my complete semester report", icon: GraduationCap },
+        { text: "Attendance and marks together", icon: Calendar },
+        { text: "Which subject needs focus?", icon: BarChart3 }
+    ];
+};           
+
+
+if (showLoginForm) {
                 return React.createElement(LoginForm, { 
                     onLogin: handleLogin, 
                     isLoading: isLoading 
@@ -568,17 +708,17 @@
                         React.createElement('div', { ref: messagesEndRef, key: 'end-ref' })
                     ]),
 
-                    // Suggested Queries
-                    messages.length <= 2 && loginStatus === 'success' ? 
-                        React.createElement('div', { className: "px-4 py-2", key: 'suggestions' }, [
-                            React.createElement('div', { className: "flex flex-wrap gap-2 justify-center" }, 
-                                suggestedQueries.map((query, index) => {
+                    // Suggested Queries - Now Dynamic!
+loginStatus === 'success' && !isLoading ? 
+    React.createElement('div', { className: "px-4 py-2", key: 'suggestions' }, [
+        React.createElement('div', { className: "flex flex-wrap gap-2 justify-center" }, 
+            getDynamicSuggestions().map((query, index) => {
                                     const IconComponent = query.icon;
                                     return React.createElement('button', {
                                         key: index,
                                         onClick: () => handleSuggestionClick(query.text),
                                         disabled: !isLoggedIn || isLoading,
-                                        className: "flex items-center space-x-2 px-3 py-2 bg-white rounded-full border text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        className: "suggestion-button flex items-center space-x-2 px-3 py-2 bg-white rounded-full border text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                     }, [
                                         React.createElement(IconComponent, { key: 'icon' }),
                                         React.createElement('span', { key: 'text' }, query.text)
