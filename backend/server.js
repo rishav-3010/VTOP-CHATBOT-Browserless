@@ -241,6 +241,7 @@ async function generateResponse(intent, data, originalMessage, session) {
         - Important reminders
         
         Use markdown formatting (bold headers, emphasis for important dates).
+        If user asked for any particular schedule like for FAT then show only for Fat not cat2 or cat1.
       `;
       break;
 
