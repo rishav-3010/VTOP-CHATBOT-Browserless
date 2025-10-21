@@ -217,7 +217,8 @@
                                         ),
                                         React.createElement('div', { className: "flex-1" }, [
                                             React.createElement('h3', { className: "font-semibold text-gray-900 mb-1" }, "Use Demo Account"),
-                                            React.createElement('p', { className: "text-sm text-gray-600" }, "Perfect for recruiters, students from other universities, or just exploring the features with real VTOP data")
+                                            React.createElement('p', { className: "text-sm text-gray-600" },"For recruiters, students from other universities, or anyone exploring the features")
+
                                         ])
                                     ])
                                 ]),
@@ -254,7 +255,7 @@
                             ),
                             React.createElement('p', { className: "text-gray-600" }, 
                                 authMode === 'demo' ? 
-                                "You'll see real academic data from a VIT student account for demonstration purposes" :
+                                "Demo mode uses hardcoded VTOP credentials to fetch and display real student data. This is actual live data from VTOP, not a database - perfect for recruiters and visitors to explore features." :
                                 "Enter your VTOP credentials to access your real data"
                             )
                         ]),
@@ -404,8 +405,8 @@
                         setShowLoginForm(false);
                         
                         const successMessage = result.isDemo ? 
-                            '✅ Demo mode activated! You can now explore the features with real data. Ask me about CGPA, attendance, marks, or assignments.' :
-                            '✅ Successfully logged into VTOP! You can now ask me about your CGPA, attendance, marks, or assignments.';
+                            '✅ Connected to VTOP using demo credentials! You\'re viewing real-time data fetched from an actual student account. Ask me about CGPA, attendance, marks, or assignments.' :
+                            '✅ Successfully logged into VTOP! You can now ask me about your CGPA, attendance, marks, or assignments,etc';
                             
                         setMessages(prev => [...prev, {
                             id: Date.now() + 1,
