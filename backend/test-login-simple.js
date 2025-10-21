@@ -1,613 +1,421 @@
-//test-login-simple4.js
+// vtop-login-with-retry.js
 require('dotenv').config();
-const { chromium } = require('playwright');
-const { solveUsingViboot } = require('./captcha/captchaSolver');
-const path = require('path');
+const axios = require('axios');
+const { wrapper } = require('axios-cookiejar-support');
+const { CookieJar } = require('tough-cookie');
+const cheerio = require('cheerio');
 const fs = require('fs');
+const path = require('path');
+const { solveUsingViboot } = require('./captcha/captchaSolver');
 
 const username = process.env.VTOP_USERNAME;
 const password = process.env.VTOP_PASSWORD;
 
+const jar = new CookieJar();
+const client = wrapper(axios.create({
+  jar,
+  withCredentials: true,
+  maxRedirects: 5,
+  validateStatus: () => true,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1'
+  }
+}));
 
+let globalCsrf = null;
+let globalAuthID = null;
 
+const getCsrf = (html) => {
+  const $ = cheerio.load(html);
+  return $('meta[name="_csrf"]').attr('content') || $('input[name="_csrf"]').val();
+};
 
-// Get CSRF token and student ID (reusable helper)
-async function getAuthData(page) {
-  return await page.evaluate(() => {
-    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') ||
-                     document.querySelector('input[name="_csrf"]')?.value;
-    const regNumMatch = document.body.textContent.match(/\b\d{2}[A-Z]{3}\d{4}\b/g);
-    const authorizedID = regNumMatch ? regNumMatch[0] : null;
-    
-    return { csrfToken, authorizedID };
-  });
-}
-
-// Login History Function
-// Login History Function
-async function getLoginHistoryAjax(page) {
-  const { csrfToken, authorizedID } = await getAuthData(page);
+const getAuthData = async () => {
+  if (globalCsrf && globalAuthID) return { csrfToken: globalCsrf, authorizedID: globalAuthID };
   
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/show/login/history', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `_csrf=${csrfToken}&authorizedID=${authorizedID}&x=${new Date().toUTCString()}`);
+  const res = await client.get('https://vtop.vit.ac.in/vtop/content');
+  const $ = cheerio.load(res.data);
+  globalCsrf = getCsrf(res.data);
+  globalAuthID = res.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
+  return { csrfToken: globalCsrf, authorizedID: globalAuthID };
+};
 
-  // Extract just the text content without HTML tags
-  const textContent = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    return tempDiv.textContent || tempDiv.innerText || '';
-  }, response);
-
-  console.log('\n🕐 LOGIN HISTORY\n' + '='.repeat(40));
-  console.log(textContent);
-
-  return textContent;
-}
-// CGPA Function
-async function getCGPAAjax(page) {
-  const { csrfToken, authorizedID } = await getAuthData(page);
+async function login() {
+  console.log('🚀 Starting login...\n');
   
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/get/dashboard/current/cgpa/credits', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `authorizedID=${authorizedID}&_csrf=${csrfToken}&x=${new Date().toUTCString()}`);
-
-  const cgpaMatch = response.match(/<span.*?>([0-9.]+)<\/span>/g);
-  const cgpa = cgpaMatch ? cgpaMatch[2]?.match(/>([0-9.]+)</)?.[1] : null;
+  const MAX_CAPTCHA_ATTEMPTS = 3;
   
-  console.log('🌟 Your CGPA is:', cgpa);
-  return cgpa;
-}
-
-// Attendance Function
-async function getAttendanceAjax(page, semesterSubId = 'VL20252601') {
-  const { csrfToken, authorizedID } = await getAuthData(page);
-  
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/processViewStudentAttendance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `_csrf=${csrfToken}&semesterSubId=${semesterSubId}&authorizedID=${authorizedID}&x=${new Date().toUTCString()}`);
-
-  const attendanceData = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const rows = Array.from(tempDiv.querySelectorAll('#AttendanceDetailDataTable tbody tr'));
-    
-    return rows.map(row => {
-      const cells = row.querySelectorAll('td');
-      const attendanceCell = cells[7];
-      let attendancePercentage = '';
-      if (attendanceCell) {
-        const span = attendanceCell.querySelector('span span');
-        attendancePercentage = span ? span.innerText.trim() : attendanceCell.innerText.trim();
-      }
-      
-      return {
-        slNo: cells[0]?.innerText.trim() || '',
-        courseDetail: cells[2]?.innerText.trim() || '',
-        attendedClasses: cells[5]?.innerText.trim() || '',
-        totalClasses: cells[6]?.innerText.trim() || '',
-        attendancePercentage,
-        debarStatus: cells[8]?.innerText.trim() || ''
-      };
-    }).filter(item => item.slNo);
-  }, response);
-
-  console.log('\n📊 ATTENDANCE SUMMARY:');
-  attendanceData.forEach(({ slNo, courseDetail, attendedClasses, totalClasses, attendancePercentage }) => {
-    console.log(`[${slNo}] ${courseDetail}: ${attendedClasses}/${totalClasses} (${attendancePercentage})`);
-  });
-
-  return attendanceData;
-}
-
-// Mark View Function //VL20242505
-async function getMarkViewAjax(page, semesterSubId = 'VL20242505') {
-  const { csrfToken, authorizedID } = await getAuthData(page);
-  
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/examinations/doStudentMarkView', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `_csrf=${csrfToken}&semesterSubId=${semesterSubId}&authorizedID=${authorizedID}&x=${new Date().toUTCString()}`);
-
-  const marksData = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const rows = Array.from(tempDiv.querySelectorAll('tbody tr'));
-    
-    const courses = [];
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row.classList.contains('tableContent') || row.querySelector('.customTable-level1')) continue;
-      
-      const cells = row.querySelectorAll('td');
-      const course = {
-        slNo: cells[0]?.innerText.trim(),
-        courseCode: cells[2]?.innerText.trim(),
-        courseTitle: cells[3]?.innerText.trim(),
-        faculty: cells[6]?.innerText.trim(),
-        slot: cells[7]?.innerText.trim(),
-        marks: []
-      };
-      
-      const nextRow = rows[i + 1];
-      const marksTable = nextRow?.querySelector('.customTable-level1 tbody');
-      if (marksTable) {
-        course.marks = Array.from(marksTable.querySelectorAll('tr.tableContent-level1')).map(markRow => {
-          const outputs = markRow.querySelectorAll('output');
-          return {
-            title: outputs[1]?.innerText.trim(),
-            scored: outputs[5]?.innerText.trim(),
-            max: outputs[2]?.innerText.trim(),
-            weightage: outputs[6]?.innerText.trim(),
-            percent: outputs[3]?.innerText.trim()
-          };
-        });
-        i++; // Skip marks table row
-      }
-      courses.push(course);
-    }
-    return courses;
-  }, response);
-
-  console.log('\n🎯 MARKS DASHBOARD\n' + '='.repeat(50));
-  marksData.forEach(course => {
-    const totalWeightage = course.marks.reduce((sum, mark) => sum + parseFloat(mark.weightage || 0), 0);
-    console.log(`\n📚 [${course.slNo}] ${course.courseCode} - ${course.courseTitle}`);
-    console.log(`👨‍🏫 ${course.faculty} | 🕐 ${course.slot} | 📊 Total: ${totalWeightage.toFixed(1)}`);
-    
-    if (course.marks.length) {
-      course.marks.forEach(mark => {
-        const percentage = ((parseFloat(mark.scored || 0) / parseFloat(mark.max || 1)) * 100).toFixed(1);
-        const status = percentage >= 70 ? '🟢' : percentage >= 50 ? '🟡' : '🔴';
-        console.log(`   ${status} ${mark.title}: ${mark.scored}/${mark.max} (${percentage}%) → ${mark.weightage}/${mark.percent}%`);
-      });
-    } else {
-      console.log('   ⏳ No marks posted yet');
-    }
-  });
-
-  return marksData;
-}
-
-// Digital Assignment Function
-
-async function getDigitalAssignmentAjax(page, semesterSubId = 'VL20252601') {
-  const { csrfToken, authorizedID } = await getAuthData(page);
-  
-  // First request to get all subjects
-  const subjectsResponse = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/examinations/doDigitalAssignment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `authorizedID=${authorizedID}&x=${new Date().toUTCString()}&semesterSubId=${semesterSubId}&_csrf=${csrfToken}`);
-
-  // Parse subjects data
-  const subjectsData = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const rows = Array.from(tempDiv.querySelectorAll('tbody tr.tableContent'));
-    
-    return rows.map(row => {
-      const cells = row.querySelectorAll('td');
-      return {
-        slNo: cells[0]?.innerText.trim() || '',
-        classNbr: cells[1]?.innerText.trim() || '',
-        courseCode: cells[2]?.innerText.trim() || '',
-        courseTitle: cells[3]?.innerText.trim() || ''
-      };
-    }).filter(item => item.slNo && item.classNbr);
-  }, subjectsResponse);
-
-  console.log('\n📋 DIGITAL ASSIGNMENTS - ALL SUBJECTS\n' + '='.repeat(60));
-
-  // For each subject, get assignments
-  for (const subject of subjectsData) {
-    console.log(`\n📚 [${subject.slNo}] ${subject.courseCode} - ${subject.courseTitle}`);
-    
+  for (let captchaAttempt = 1; captchaAttempt <= MAX_CAPTCHA_ATTEMPTS; captchaAttempt++) {
     try {
-      // Get assignments for this subject
-      const assignmentsResponse = await page.evaluate(async (payloadString) => {
-        const res = await fetch('/vtop/examinations/processDigitalAssignment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: payloadString
-        });
-        return await res.text();
-      }, `_csrf=${csrfToken}&classId=${subject.classNbr}&authorizedID=${authorizedID}&x=${new Date().toUTCString()}`);
-
-      // Parse assignments - target only the second table (assignments table)
-      const assignmentData = await page.evaluate((html) => {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
+      console.log(`\n${'='.repeat(50)}`);
+      console.log(`🔄 CAPTCHA ATTEMPT ${captchaAttempt}/${MAX_CAPTCHA_ATTEMPTS}`);
+      console.log('='.repeat(50));
+      
+      // Step 1: Initial page
+      console.log('📍 Step 1: Loading initial page');
+      const init = await client.get('https://vtop.vit.ac.in/vtop/open/page');
+      let csrf = getCsrf(init.data);
+      
+      // Step 2: Setup
+      console.log('📍 Step 2: Calling prelogin setup');
+      const setup = await client.post(
+        'https://vtop.vit.ac.in/vtop/prelogin/setup',
+        new URLSearchParams({ _csrf: csrf, flag: 'VTOP' }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
+            'Origin': 'https://vtop.vit.ac.in'
+          }
+        }
+      );
+      csrf = getCsrf(setup.data) || csrf;
+      
+      // Step 3: Get CAPTCHA
+      console.log('📍 Step 3: Finding CAPTCHA');
+      let captchaBuffer, setupHtml = setup.data, attempts = 0;
+      
+      while (!captchaBuffer && attempts++ < 10) {
+        const $ = cheerio.load(setupHtml);
+        const src = $('img.form-control.img-fluid.bg-light.border-0').attr('src');
         
-        // Find all tables
-        const tables = Array.from(tempDiv.querySelectorAll('table.customTable'));
+        if (src?.startsWith('data:image')) {
+          captchaBuffer = Buffer.from(src.split(',')[1], 'base64');
+          console.log(`   ✅ CAPTCHA found on attempt ${attempts}`);
+        } else {
+          console.log(`   ❌ Reloading (${attempts}/10)`);
+          const retry = await client.post(
+            'https://vtop.vit.ac.in/vtop/prelogin/setup',
+            new URLSearchParams({ _csrf: csrf, flag: 'VTOP' }),
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
+                'Origin': 'https://vtop.vit.ac.in'
+              }
+            }
+          );
+          setupHtml = retry.data;
+          csrf = getCsrf(setupHtml) || csrf;
+        }
+      }
+      
+      if (!captchaBuffer) throw new Error('CAPTCHA not found');
+      
+      // Save & Solve CAPTCHA
+      const dir = path.join(__dirname, 'sample-captchas');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      const captchaFilename = `captcha-attempt${captchaAttempt}-${Date.now()}.png`;
+      fs.writeFileSync(path.join(dir, captchaFilename), captchaBuffer);
+      
+      const captcha = await solveUsingViboot(captchaBuffer);
+      console.log('   🧠 Solved as:', captcha);
+      console.log('   💾 Saved as:', captchaFilename);
+      
+      // Step 4: Submit login
+      console.log('\n📍 Step 4: Submitting login');
+      const loginRes = await client.post(
+        'https://vtop.vit.ac.in/vtop/login',
+        new URLSearchParams({
+          _csrf: csrf,
+          username: username,
+          password: password,
+          captchaStr: captcha
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
+            'Origin': 'https://vtop.vit.ac.in'
+          }
+        }
+      );
+      
+      const finalUrl = loginRes.request?.res?.responseUrl || loginRes.config.url;
+      console.log('   Status:', loginRes.status);
+      console.log('   Final URL:', finalUrl);
+      
+      // Check for error URL (wrong CAPTCHA)
+      if (finalUrl.includes('/vtop/login/error')) {
+        console.log(`\n❌ CAPTCHA INCORRECT (Attempt ${captchaAttempt}/${MAX_CAPTCHA_ATTEMPTS})`);
         
-        // The assignments table is the second one (index 1)
-        const assignmentTable = tables[1];
-        if (!assignmentTable) return [];
+        if (captchaAttempt < MAX_CAPTCHA_ATTEMPTS) {
+          console.log('🔄 Retrying with new CAPTCHA...');
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          continue; // Retry
+        } else {
+          console.log('\n❌ LOGIN FAILED - Max CAPTCHA attempts reached');
+          return false;
+        }
+      }
+      
+      // Check for success (redirected to content/dashboard)
+      if (finalUrl.includes('/vtop/content') || finalUrl.includes('/vtop/student')) {
+        console.log('\n🎉 ✅ LOGIN SUCCESSFUL!');
         
-        const rows = Array.from(assignmentTable.querySelectorAll('tbody tr.tableContent'));
+        // Wait for server to settle
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        return rows.map(row => {
-          const cells = row.querySelectorAll('td');
-          // Skip if this looks like a header or has wrong number of cells
-          if (cells.length < 5) return null;
-          
-          return {
-            slNo: cells[0]?.innerText.trim() || '',
-            title: cells[1]?.innerText.trim() || '',
-            dueDate: cells[4]?.querySelector('span')?.innerText.trim() || cells[4]?.innerText.trim() || ''
-          };
-        }).filter(item => item && item.slNo && item.slNo !== 'Sl.No.');
-      }, assignmentsResponse);
-
-      if (assignmentData.length > 0) {
-        assignmentData.forEach(({ slNo, title, dueDate }) => {
-          console.log(`   📝 [${slNo}] ${title} - Due: ${dueDate}`);
-        });
+        // Fetch dashboard
+        console.log('📍 Loading dashboard...');
+        const dashboardRes = await client.get('https://vtop.vit.ac.in/vtop/content');
+        
+        fs.writeFileSync(path.join(__dirname, 'dashboard.html'), dashboardRes.data);
+        console.log('   💾 Dashboard saved to: dashboard.html');
+        
+        // Extract auth data
+        globalCsrf = getCsrf(dashboardRes.data);
+        globalAuthID = dashboardRes.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
+        
+        console.log('   🔑 Authorized ID:', globalAuthID);
+        console.log('   🔑 CSRF Token:', globalCsrf);
+        
+        return true;
       } else {
-        console.log('   ⏳ No assignments found');
+        console.log('\n⚠️  Unknown response - check dashboard.html');
+        fs.writeFileSync(path.join(__dirname, 'unknown-response.html'), loginRes.data);
+        return false;
       }
+      
     } catch (error) {
-      console.log('   ❌ Error fetching assignments');
+      console.error(`\n❌ Error on attempt ${captchaAttempt}:`, error.message);
+      if (captchaAttempt >= MAX_CAPTCHA_ATTEMPTS) {
+        return false;
+      }
+      console.log('🔄 Retrying...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
-
-  return { subjects: subjectsData };
+  
+  return false;
 }
 
-// Grade View Function
-async function getGradeViewAjax(page, semesterSubId = 'VL20242505') {
-  const { csrfToken, authorizedID } = await getAuthData(page);
-  
-  // First request - navigate to grade view page
-  await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/examinations/examGradeView/StudentGradeView', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `verifyMenu=true&authorizedID=${authorizedID}&_csrf=${csrfToken}`);
-
-  // Second request - get grades for specific semester
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/examinations/examGradeView/doStudentGradeView', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `authorizedID=${authorizedID}&_csrf=${csrfToken}&semesterSubId=${semesterSubId}`);
-
-  // Parse grades data
-  const gradesData = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const rows = Array.from(tempDiv.querySelectorAll('tbody tr'));
-    
-    const courses = [];
-    let gpa = null;
-    
-    for (const row of rows) {
-      const cells = row.querySelectorAll('td');
-      
-      // Check if this is the GPA row
-      if (cells.length === 1 && cells[0].getAttribute('colspan') === '14') {
-        const gpaText = cells[0].innerText;
-        const gpaMatch = gpaText.match(/GPA\s*:\s*([0-9.]+)/);
-        if (gpaMatch) {
-          gpa = gpaMatch[1];
-        }
-        continue;
-      }
-      
-      // Skip header rows and empty rows
-      if (cells.length < 11 || cells[0].innerText.trim() === 'Sl.No.') continue;
-      
-      const course = {
-        slNo: cells[0]?.innerText.trim() || '',
-        courseCode: cells[1]?.innerText.trim() || '',
-        courseTitle: cells[2]?.innerText.trim() || '',
-        courseType: cells[3]?.innerText.trim() || '',
-        creditsL: cells[4]?.innerText.trim() || '',
-        creditsP: cells[5]?.innerText.trim() || '',
-        creditsJ: cells[6]?.innerText.trim() || '',
-        creditsC: cells[7]?.innerText.trim() || '',
-        gradingType: cells[8]?.innerText.trim() || '',
-        grandTotal: cells[9]?.innerText.trim() || '',
-        grade: cells[10]?.innerText.trim() || ''
-      };
-      
-      // Only add if it has valid data
-      if (course.slNo && course.courseCode) {
-        courses.push(course);
-      }
-    }
-    
-    return { courses, gpa };
-  }, response);
-
-  console.log('\n🎓 GRADE REPORT\n' + '='.repeat(50));
-  console.log(`📊 Semester GPA: ${gradesData.gpa || 'N/A'}\n`);
-  
-  gradesData.courses.forEach(course => {
-    const totalCredits = parseFloat(course.creditsC || 0);
-    const gradeIcon = course.grade === 'S' ? '🌟' : 
-                     course.grade === 'A' ? '🟢' : 
-                     course.grade === 'B' ? '🟡' : 
-                     course.grade === 'C' ? '🟠' : '🔴';
-    
-    console.log(`${gradeIcon} [${course.slNo}] ${course.courseCode} - ${course.courseTitle}`);
-    console.log(`   📚 Type: ${course.courseType} | 🎯 Credits: ${totalCredits} | 📝 Score: ${course.grandTotal} | 🏆 Grade: ${course.grade}`);
-  });
-
-  return gradesData;
-}
-// Leave History Function
-async function getLeaveHistoryAjax(page) {
-  const { csrfToken, authorizedID } = await getAuthData(page);
-  
-  // First request - navigate to leave page
-  await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/hostels/student/leave/1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `verifyMenu=true&authorizedID=${authorizedID}&_csrf=${csrfToken}`);
-
-  // Second request - get leave history
-  const response = await page.evaluate(async (payloadString) => {
-    const res = await fetch('/vtop/hostels/student/leave/6', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: payloadString
-    });
-    return await res.text();
-  }, `_csrf=${csrfToken}&authorizedID=${authorizedID}&history=&form=undefined&control=history&x=${new Date().toUTCString()}`);
-
-  // Parse leave history data
-  const leaveData = await page.evaluate((html) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const rows = Array.from(tempDiv.querySelectorAll('#LeaveHistoryTable tbody tr'));
-    
-    return rows.map(row => {
-      const cells = row.querySelectorAll('td');
-      // Skip if not enough cells or hidden row
-      if (cells.length < 6) return null;
-      
-      const leave = {
-        visitPlace: cells[1]?.innerText.trim() || '',
-        reason: cells[2]?.innerText.trim() || '',
-        leaveType: cells[3]?.innerText.trim() || '',
-        fromDate: cells[4]?.innerText.trim() || '',
-        toDate: cells[5]?.innerText.trim() || '',
-        status: cells[6]?.innerText.trim() || ''
-      };
-      
-      // Only return if we have valid data
-      return leave.visitPlace ? leave : null;
-    }).filter(item => item !== null);
-  }, response);
-
-  console.log('\n🏠 LEAVE HISTORY\n' + '='.repeat(50));
-  
-  if (leaveData.length === 0) {
-    console.log('📋 No leave history found');
-    return leaveData;
-  }
-
-  leaveData.forEach((leave, index) => {
-    // Determine status icon
-    const statusIcon = leave.status.includes('APPROVED') ? '✅' : 
-                      leave.status.includes('CANCELLED') ? '❌' : 
-                      leave.status.includes('PENDING') ? '⏳' : '📋';
-    
-    // Determine leave type icon
-    const typeIcon = leave.leaveType.includes('SUMMER') ? '☀️' :
-                    leave.leaveType.includes('WINTER') ? '❄️' :
-                    leave.leaveType.includes('EMERGENCY') ? '🚨' :
-                    leave.leaveType.includes('HOME TOWN') ? '🏠' : '📅';
-    
-    console.log(`\n${statusIcon} ${typeIcon} [${index + 1}] ${leave.leaveType}`);
-    console.log(`   📍 Place: ${leave.visitPlace}`);
-    console.log(`   📝 Reason: ${leave.reason}`);
-    console.log(`   📅 Duration: ${leave.fromDate} → ${leave.toDate}`);
-    console.log(`   📋 Status: ${leave.status}`);
-  });
-
-  // Summary statistics
-  const totalLeaves = leaveData.length;
-  const approvedLeaves = leaveData.filter(l => l.status.includes('APPROVED')).length;
-  const cancelledLeaves = leaveData.filter(l => l.status.includes('CANCELLED')).length;
-  
-  console.log(`\n📊 LEAVE SUMMARY:`);
-  console.log(`   Total Applications: ${totalLeaves}`);
-  console.log(`   ✅ Approved: ${approvedLeaves}`);
-  console.log(`   ❌ Cancelled/Rejected: ${cancelledLeaves}`);
-  console.log(`   📈 Success Rate: ${((approvedLeaves / totalLeaves) * 100).toFixed(1)}%`);
-
-  return leaveData;
-}
-// ===== CAPTCHA SOLVER =====
-async function solveCaptcha(page) {
-  await page.waitForSelector('img.form-control.img-fluid.bg-light.border-0', { timeout: 10000 });
-  
-  const captchaDataUrl = await page.evaluate(() => {
-    const img = document.querySelector('img.form-control.img-fluid.bg-light.border-0');
-    return img ? img.src : null;
-  });
-
-  let captchaBuffer;
-  const folderPath = path.join(__dirname, 'sample-captchas');
-  if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath);
-
-  if (captchaDataUrl && captchaDataUrl.startsWith('data:image')) {
-    const base64Data = captchaDataUrl.split(',')[1];
-    captchaBuffer = Buffer.from(base64Data, 'base64');
-  }
-
-  console.log('🧠 Solving with ViBoOT neural network...');
-  const result = await solveUsingViboot(captchaBuffer);
-  
-  console.log('✅ ViBoOT CAPTCHA result:', result);
-  await page.fill('#captchaStr', result);
-  return result;
-}
-
-// ===== MAIN FUNCTION =====
-async function testVtopLoginWithAjax() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(240000);
-
+async function getCGPA() {
   try {
-    console.log('🔍 Testing VTOP login with AJAX CGPA fetch...');
-    await page.goto('https://vtop.vit.ac.in/vtop/login');
-    await page.waitForSelector('#stdForm', { timeout: 10000 });
-    await page.click('#stdForm button[type="submit"]');
-    await page.waitForLoadState('networkidle');
-    await page.waitForSelector('#username');
-
-    await page.fill('#username', username);
-    await page.fill('#password', password);
-
-    let captchaFound = false;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (!captchaFound && attempts < maxAttempts) {
-      try {
-        const captchaElement = await page.$('img.form-control.img-fluid.bg-light.border-0');
-        if (captchaElement) {
-          console.log(`✅ CAPTCHA found on attempt ${attempts + 1}`);
-          captchaFound = true;
-          await solveCaptcha(page);
-        } else {
-          console.log(`❌ No CAPTCHA found, reloading... (attempt ${attempts + 1}/${maxAttempts})`);
-          await page.reload();
-          await page.waitForLoadState('networkidle');
-          await page.waitForSelector('#username');
-          await page.fill('#username', username);
-          await page.fill('#password', password);
-          attempts++;
+    console.log('\n📊 Fetching CGPA...');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    if (!csrfToken || !authorizedID) {
+      console.log('❌ Missing auth data');
+      return;
+    }
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
+      new URLSearchParams({
+        authorizedID,
+        _csrf: csrfToken,
+        x: new Date().toUTCString()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
         }
-      } catch (error) {
-        console.log(`❌ Error checking CAPTCHA, reloading... (attempt ${attempts + 1}/${maxAttempts})`);
-        await page.reload();
-        await page.waitForLoadState('networkidle');
-        await page.waitForSelector('#username');
-        await page.fill('#username', username);
-        await page.fill('#password', password);
-        attempts++;
       }
-    }
-
-    if (!captchaFound) {
-      throw new Error('CAPTCHA not found after maximum attempts');
-    }
-
-    let loginSuccess = false;
-    let captchaAttempts = 0;
-    const maxCaptchaAttempts = 3;
-
-    while (!loginSuccess && captchaAttempts < maxCaptchaAttempts) {
-      captchaAttempts++;
-      console.log(`🔄 CAPTCHA attempt ${captchaAttempts}/${maxCaptchaAttempts}`);
-      
-      console.log('✅ Captcha entered, waiting 1 seconds before submitting...');
-      // await page.waitForTimeout(1000);
-
-      console.log('⏩ Now clicking submit...');
-      await page.click('button:has-text("Submit")');
-      
-      try {
-        await page.waitForLoadState('networkidle', { timeout: 30000 });
-        // await page.waitForTimeout(3000);
-
-        loginSuccess = await page.evaluate(() => {
-          return Array.from(document.querySelectorAll('.card-header.primaryBorderTop span'))
-            .some(span => span.textContent && span.textContent.includes('CGPA and CREDIT Status'));
-        });
-
-        if (loginSuccess) {
-          console.log('🎉 LOGIN SUCCESSFUL!');
-          console.log('Current URL:', await page.url());
-
-          console.log('\n🚀 Starting AJAX data extraction...');
-          
-          await getCGPAAjax(page);
-          //  await getLoginHistoryAjax(page);
-  // await getAttendanceAjax(page);
-  // await getMarkViewAjax(page);
-  // await getDigitalAssignmentAjax(page);
-  //await getGradeViewAjax(page);
-  await getLeaveHistoryAjax(page);
-  
-  break;
-        }
-
-        const backAtLogin = await page.$('#username');
-        if (backAtLogin && captchaAttempts < maxCaptchaAttempts) {
-          console.log(`❌ Invalid CAPTCHA - page reloaded (attempt ${captchaAttempts})`);
-          console.log('🔄 Trying again with new CAPTCHA...');
-          
-          await page.fill('#username', username);
-          await page.fill('#password', password);
-          
-          await solveCaptcha(page);
-        } else {
-          console.log('❌ LOGIN FAILED - unknown error');
-          break;
-        }
-
-      } catch (error) {
-        console.log('❌ Error during login attempt:', error.message);
-        break;
-      }
-    }
-
-    if (!loginSuccess) {
-      console.log(`❌ LOGIN FAILED after ${maxCaptchaAttempts} CAPTCHA attempts`);
-    }
-
-    await browser.close();
-    return loginSuccess;
-
+    );
+    
+    const $ = cheerio.load(res.data);
+    console.log('═'.repeat(50));
+    $('li.list-group-item').each((i, el) => {
+      const label = $(el).find('span.card-title').text().trim();
+      const value = $(el).find('span.fontcolor3 span').text().trim();
+      if (label && value) console.log(`${label.padEnd(30)} ${value}`);
+    });
+    console.log('═'.repeat(50));
   } catch (error) {
-    console.error('❌ Error during login test:', error.message);
-    await browser.close();
-    return false;
+    console.error('❌ CGPA fetch error:', error.message);
   }
 }
 
-// ===== RUN THE SCRIPT =====
-testVtopLoginWithAjax().then(success => {
-  console.log('Final result - Login success:', success);
-});
+async function getAttendance(semId = 'VL20252601') {
+  try {
+    console.log('\n📊 ATTENDANCE:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/processViewStudentAttendance',
+      new URLSearchParams({
+        _csrf: csrfToken,
+        semesterSubId: semId,
+        authorizedID,
+        x: new Date().toUTCString()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    $('#AttendanceDetailDataTable tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length > 7) {
+        const course = $(cells[2]).text().trim();
+        const attended = $(cells[5]).text().trim();
+        const total = $(cells[6]).text().trim();
+        const percent = $(cells[7]).find('span span').text().trim() || $(cells[7]).text().trim();
+        const status = parseFloat(percent) >= 75 ? '✅' : '⚠️';
+        console.log(`${status} ${course}: ${attended}/${total} (${percent}%)`);
+      }
+    });
+  } catch (error) {
+    console.error('❌ Attendance error:', error.message);
+  }
+}
+
+async function getMarks(semId = 'VL20252601') {
+  try {
+    console.log('\n🎯 MARKS:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView',
+      new URLSearchParams({
+        _csrf: csrfToken,
+        semesterSubId: semId,
+        authorizedID,
+        x: new Date().toUTCString()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const rows = $('tbody tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = $(rows[i]);
+      if (!row.hasClass('tableContent')) continue;
+      
+      const cells = row.find('td');
+      const courseCode = $(cells[2]).text().trim();
+      const courseTitle = $(cells[3]).text().trim();
+      
+      if (courseCode) {
+        console.log(`\n📚 ${courseCode} - ${courseTitle}`);
+        
+        const nextRow = $(rows[i + 1]);
+        nextRow.find('.customTable-level1 tr.tableContent-level1').each((j, markRow) => {
+          const outputs = $(markRow).find('output');
+          const title = $(outputs[1]).text().trim();
+          const scored = $(outputs[5]).text().trim();
+          const max = $(outputs[2]).text().trim();
+          const weightage = $(outputs[6]).text().trim();
+          if (title) {
+            const pct = ((parseFloat(scored) / parseFloat(max)) * 100).toFixed(1);
+            console.log(`   ${title}: ${scored}/${max} (${pct}%) → ${weightage}`);
+          }
+        });
+        i++;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Marks error:', error.message);
+  }
+}
+
+async function getAssignments(semId = 'VL20252601') {
+  try {
+    console.log('\n📋 ASSIGNMENTS:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment',
+      new URLSearchParams({
+        authorizedID,
+        x: new Date().toUTCString(),
+        semesterSubId: semId,
+        _csrf: csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    
+    for (const row of $('tbody tr.tableContent').toArray()) {
+      const cells = $(row).find('td');
+      const classNbr = $(cells[1]).text().trim();
+      const courseCode = $(cells[2]).text().trim();
+      const courseTitle = $(cells[3]).text().trim();
+      
+      if (!classNbr) continue;
+      
+      console.log(`\n📚 ${courseCode} - ${courseTitle}`);
+      
+      try {
+        const aRes = await client.post(
+          'https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment',
+          new URLSearchParams({
+            _csrf: csrfToken,
+            classId: classNbr,
+            authorizedID,
+            x: new Date().toUTCString()
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Referer': 'https://vtop.vit.ac.in/vtop/content',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }
+        );
+        
+        const $a = cheerio.load(aRes.data);
+        const tables = $a('table.customTable');
+        let foundAny = false;
+        
+        if (tables.length > 1) {
+          $a(tables[1]).find('tbody tr.tableContent').each((i, aRow) => {
+            const aCells = $a(aRow).find('td');
+            const title = $a(aCells[1]).text().trim();
+            const due = $a(aCells[4]).find('span').text().trim() || $a(aCells[4]).text().trim();
+            if (title && title !== 'Title') {
+              console.log(`   📝 ${title} - Due: ${due}`);
+              foundAny = true;
+            }
+          });
+        }
+        
+        if (!foundAny) console.log('   ⏳ No assignments found');
+      } catch (error) {
+        console.log('   ❌ Error fetching assignments');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Assignments error:', error.message);
+  }
+}
+
+(async () => {
+  if (await login()) {
+    await getCGPA();
+    await getAttendance();
+    await getMarks();
+    await getAssignments();
+    console.log('\n✅ All done! Press Ctrl+C to exit');
+    setInterval(() => {}, 30000);
+  } else {
+    console.log('\n❌ Login failed after all attempts');
+  }
+})();

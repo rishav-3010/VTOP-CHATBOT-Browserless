@@ -345,7 +345,7 @@ async function getLoginHistory(authData, session, sessionId) {
     }
     
     console.log(`[${sessionId}] Login History fetched for ${authData.authorizedID}`);
-    return loginHistory;
+    return loginHistory.slice(0, 10);
   } catch (error) {
     console.error(`[${sessionId}] Login History fetch error:`, error.message);
     throw error;
