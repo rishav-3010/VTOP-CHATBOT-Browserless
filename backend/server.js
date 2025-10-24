@@ -198,12 +198,13 @@ async function generateResponse(intent, data, originalMessage, session) {
     After each course table, add a line showing:
     **Course Total: X/Y (Z%)**
     
-    Then add an overall Analysis section with:
-    - Overall performance summary across all subjects
+    Then add an overall Analysis section with:(if user asked for single subject then keep this below instructions for only for single not all)
+    - Overall performance summary across all subjects()
     - Best performing courses (70%+)
     - Courses needing attention (below 60%)
     - Recommendations
     
+    IMP:If user is asking "Which subject has my lowest/highest marks? or any other particular thing to a single subject then show only for that subject not all" then show only that particular subject not all.
     Use markdown formatting (bold headers, emphasis for important insights).
   `;
   break;
