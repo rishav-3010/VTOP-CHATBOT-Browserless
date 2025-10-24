@@ -107,15 +107,9 @@ async function login() {
       
       if (!captchaBuffer) throw new Error('CAPTCHA not found');
       
-      // Save & Solve CAPTCHA
-      const dir = path.join(__dirname, 'sample-captchas');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      const captchaFilename = `captcha-attempt${captchaAttempt}-${Date.now()}.png`;
-      fs.writeFileSync(path.join(dir, captchaFilename), captchaBuffer);
       
       const captcha = await solveUsingViboot(captchaBuffer);
       console.log('   🧠 Solved as:', captcha);
-      console.log('   💾 Saved as:', captchaFilename);
       
       // Step 4: Submit login
       console.log('\n📍 Step 4: Submitting login');
@@ -162,11 +156,7 @@ async function login() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Fetch dashboard
-        console.log('📍 Loading dashboard...');
         const dashboardRes = await client.get('https://vtop.vit.ac.in/vtop/content');
-        
-        fs.writeFileSync(path.join(__dirname, 'dashboard.html'), dashboardRes.data);
-        console.log('   💾 Dashboard saved to: dashboard.html');
         
         // Extract auth data
         globalCsrf = getCsrf(dashboardRes.data);
@@ -177,8 +167,6 @@ async function login() {
         
         return true;
       } else {
-        console.log('\n⚠️  Unknown response - check dashboard.html');
-        fs.writeFileSync(path.join(__dirname, 'unknown-response.html'), loginRes.data);
         return false;
       }
       
@@ -200,10 +188,6 @@ async function getCGPA() {
     console.log('\n📊 Fetching CGPA...');
     const { csrfToken, authorizedID } = await getAuthData();
     
-    if (!csrfToken || !authorizedID) {
-      console.log('❌ Missing auth data');
-      return;
-    }
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
