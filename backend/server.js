@@ -272,9 +272,9 @@ async function generateResponse(intent, data, originalMessage, session) {
     
     For each day (Monday to Friday), create:
     ### Monday
-    | Time | Course | Venue | Faculty |
+    | Time | Course | Venue | Slot |
     |------|--------|-------|---------|
-    | 08:00 - 09:00 AM | CSE1001 - Problem Solving | AB1-G03 | Dr. Smith |
+    | 08:00 - 09:00 AM | CSE1001 - Problem Solving | AB1-G03 | A1 |
     | ... | ... | ... | ... |
     
     After all days, add a Course Summary section with:
