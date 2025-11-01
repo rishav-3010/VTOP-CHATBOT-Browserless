@@ -266,7 +266,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     The user asked: "${originalMessage}"
     Here's their timetable data: ${JSON.stringify(data, null, 2)}
     
-    Format the timetable in a clean, day-wise view:
+    Format the timetable in a clean, day-wise view:(Also if user is asking for a particular day then show only for that day not all)
     
     ## 📅 Weekly Schedule
     
@@ -278,7 +278,6 @@ async function generateResponse(intent, data, originalMessage, session) {
     | ... | ... | ... | ... |
     
     After all days, add a Course Summary section with:
-    - List all courses with their slots
     - Total classes per week
     - Any observations (like back-to-back classes, long gaps, etc.)
     
@@ -289,6 +288,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     - 🏢 for venues
     
     Use markdown formatting for clarity.
+    Also if there is lab sessions include them appropriately like slot L35+L36 is one column not separately
   `;
   break;
     default:
