@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loginToVTOP, getAuthData } = require('./vtop-auth');
-const { getCGPA, getAttendance, getAssignments, getMarks, getLoginHistory, getExamSchedule } = require('./vtop-functions');
+const { getCGPA, getAttendance, getAssignments, getMarks, getLoginHistory, getExamSchedule,getTimetable } = require('./vtop-functions');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,7 +30,8 @@ function createSession() {
       marks: { data: null, timestamp: 0 },
       assignments: { data: null, timestamp: 0 },
       loginHistory: { data: null, timestamp: 0 },
-      examSchedule: { data: null, timestamp: 0 }
+      examSchedule: { data: null, timestamp: 0 },
+      timetable: { data: null, timestamp: 0 }  
     }
   };
   return sessionId;
@@ -62,6 +63,7 @@ async function recognizeIntent(message, session) {
   - getAssignments: Digital assignments, DA deadlines, urgent tasks
   - getLoginHistory: Login history, session records
   - getExamSchedule: Exam schedule, dates, venue
+  - getTimetable: Timetable, schedule, class timings, weekly schedule
   - general: Greetings, help, unclear requests
   
   IMPORTANT: 
@@ -134,23 +136,36 @@ async function generateResponse(intent, data, originalMessage, session) {
       break;
       
     case 'getattendance':
-      prompt = `
-        The user asked: "${originalMessage}"
-        Here's their attendance data: ${JSON.stringify(data, null, 2)}
-        
-        Create a markdown table with these columns:
-        | Course Code | Course Name | Attended/Total | Percentage | Debar Status |
-        
-        Fill the table with the attendance data.
-        
-        After the table, add an Analysis section with:
-        - Summary of overall attendance
-        - Courses with concerning attendance (below 75%)
-        - Any urgent concerns about debar status
-        
-        Use markdown formatting (bold, emphasis) for important points.
-      `;
-      break;
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their attendance data: ${JSON.stringify(data, null, 2)}
+    
+    **IMPORTANT NOTE**: This calculator calculates attendance to 74.01% (which VIT considers as 75%).
+    
+    Create a markdown table with these columns:
+    | Course | Attended/Total | Percentage | 75% Alert | Status |
+    
+    For the "75% Alert" column, use the 'alertMessage' field from the data.
+    For the "Status" column, use emojis based on 'alertStatus':
+    - 'danger' (below 75%): 🔴 (red circle)
+    - 'caution' (74.01%-74.99%): ⚠️ (warning)
+    - 'safe' (above 75%): ✅ (green check)
+    
+    After the table, add an Analysis section with:
+    - **Overall Summary**: How many courses are safe, in caution zone, or in danger
+    - **⚠️ Courses Needing Attention** (below 75%): List them with how many classes needed
+    - **🔴 Critical Risk**: Any courses with debar status or very low attendance
+    - **✅ Safe Courses**: Mention courses above 75% and how many can be skipped
+    
+    Add a footer note:
+    > **Note**: Color coding:
+    > - ✅ Green: Attendance > 75%
+    > - ⚠️ Orange: Attendance 74.01% - 74.99% (Be cautious)
+    > - 🔴 Red: Attendance < 75%
+    
+    Use markdown formatting (bold, emphasis) for important points.
+  `;
+  break;
       
     case 'getassignments':
   prompt = `
@@ -161,15 +176,15 @@ async function generateResponse(intent, data, originalMessage, session) {
     
     For each course, create:
     ### Course Name (Course Code)
-    | Assignment | Due Date | Days Left |
-    |------------|----------|-----------|
-    | Assessment - 1 | 22-Sep-2025 | X days |
-    | Assessment - 2 | 31-Oct-2025 | Y days |
+    | Assignment | Due Date | Status |
+    |------------|----------|--------|
+    | Assessment - 1 | 22-Sep-2025 | 5 days left |
+    | Assessment - 2 | 31-Oct-2025 | Overdue |
     
-    Calculate days left from today (you know the current date: October 21, 2025).
-    - If past due: show "X days overdue" or "Overdue"
-    - If due today: show "Due today!"
-    - If upcoming: show "X days left"
+    Use the 'status' field from the data (already calculated).
+    - Shows "X days overdue" if past due
+    - Shows "Due today!" if due today
+    - Shows "X days left" if upcoming
     
     Then add a Summary section with:
     - Total assignments across all courses
@@ -179,7 +194,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     
     Use emojis and markdown formatting for emphasis on urgent items.
   `;
-  break;  
+  break;
 
     case 'getmarks':
   prompt = `
@@ -246,6 +261,36 @@ async function generateResponse(intent, data, originalMessage, session) {
       `;
       break;
 
+      case 'gettimetable':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their timetable data: ${JSON.stringify(data, null, 2)}
+    
+    Format the timetable in a clean, day-wise view:
+    
+    ## 📅 Weekly Schedule
+    
+    For each day (Monday to Friday), create:
+    ### Monday
+    | Time | Course | Venue | Faculty |
+    |------|--------|-------|---------|
+    | 08:00 - 09:00 AM | CSE1001 - Problem Solving | AB1-G03 | Dr. Smith |
+    | ... | ... | ... | ... |
+    
+    After all days, add a Course Summary section with:
+    - List all courses with their slots
+    - Total classes per week
+    - Any observations (like back-to-back classes, long gaps, etc.)
+    
+    Use emojis to make it visually appealing:
+    - 🕐 for time-related info
+    - 📚 for courses
+    - 👨‍🏫 for faculty
+    - 🏢 for venues
+    
+    Use markdown formatting for clarity.
+  `;
+  break;
     default:
   // If this is the first message (conversation just started), send context
   if (session.conversationHistory.length <= 2) {
@@ -315,9 +360,9 @@ async function generateResponseMulti(intents, allData, originalMessage, session)
   
   // Attendance
   if (allData.attendance && intents.includes('getattendance')) {
-    dataContext += `\nAttendance Data: ${JSON.stringify(allData.attendance, null, 2)}`;
-    promptSections.push(`For Attendance: Create a markdown table with these columns: | Course Code | Course Name | Attended/Total | Percentage | Debar Status |. Fill the table with the attendance data. After the table, add an Analysis section with: Summary of overall attendance, Courses with concerning attendance (below 75%), Any urgent concerns about debar status. Use markdown formatting (bold, emphasis) for important points.`);
-  }
+  dataContext += `\nAttendance Data: ${JSON.stringify(allData.attendance, null, 2)}`;
+  promptSections.push(`For Attendance: Create a table with columns: Course | Attended/Total | Percentage | 75% Alert | Status. Use 'alertMessage' for alerts and 'alertStatus' for status emojis (🔴 danger, ⚠️ caution, ✅ safe). Add analysis of courses needing attention with specific class counts needed.`);
+}
   
   // Assignments
 if (allData.assignments && intents.includes('getassignments')) {
@@ -342,6 +387,12 @@ if (allData.marks && intents.includes('getmarks')) {
     dataContext += `\nExam Schedule: ${JSON.stringify(allData.examSchedule, null, 2)}`;
     promptSections.push(`For Exam Schedule: Create separate markdown tables for each exam type (FAT, CAT1, CAT2) with columns: | Course Code | Course Title | Date | Time | Venue | Seat No |. Then add a summary section with: Exam dates timeline, Reporting times, Important reminders. Use markdown formatting (bold headers, emphasis for important dates).`);
   }
+
+  // Timetable
+if (allData.timetable && intents.includes('gettimetable')) {
+  dataContext += `\nTimetable Data: ${JSON.stringify(allData.timetable, null, 2)}`;
+  promptSections.push(`For Timetable: Create day-wise tables (Monday-Friday) with columns: Time | Course | Venue | Faculty. Add a course summary with total classes per week and observations.`);
+}
   
   // Build the final prompt
   let prompt = `The user asked: "${originalMessage}"
@@ -393,7 +444,8 @@ app.post('/api/login', async (req, res) => {
           marks: { data: null, timestamp: 0 },
           assignments: { data: null, timestamp: 0 },
           loginHistory: { data: null, timestamp: 0 },
-          examSchedule: { data: null, timestamp: 0 }
+          examSchedule: { data: null, timestamp: 0 },
+          timetable: { data: null, timestamp: 0 }  
         }
       };
       session = sessions[sessionId];
@@ -500,6 +552,9 @@ app.post('/api/chat', async (req, res) => {
             case 'getexamschedule':
               allData.examSchedule = await getExamSchedule(authData, session, sessionId);
               break;
+            case 'gettimetable':
+  allData.timetable = await getTimetable(authData, session, sessionId);
+  break;
           }
         } catch (error) {
           console.error(`[${sessionId}] Error fetching ${intent}:`, error.message);
@@ -577,6 +632,15 @@ app.post('/api/chat', async (req, res) => {
           }
           break;
 
+        case 'gettimetable':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.timetable = await getTimetable(authData, session, sessionId);
+    response = await generateResponse(intent, allData.timetable, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your timetable right now. Please try again.";
+  }
+  break;
         default:
           response = await generateResponse(intent, null, message, session);
           break;

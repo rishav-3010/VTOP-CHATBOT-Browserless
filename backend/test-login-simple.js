@@ -743,141 +743,141 @@ async function getPaymentHistory() {
   }
 }
 
-async function getTimetable(semesterId = 'VL20252601') {
-  try {
-    console.log('\n📅 TIMETABLE:');
-    const { csrfToken, authorizedID } = await getAuthData();
+// async function getTimetable(semesterId = 'VL20252601') {
+//   try {
+//     console.log('\n📅 TIMETABLE:');
+//     const { csrfToken, authorizedID } = await getAuthData();
     
-    if (!csrfToken || !authorizedID) {
-      console.log('❌ Missing auth data');
-      return;
-    }
+//     if (!csrfToken || !authorizedID) {
+//       console.log('❌ Missing auth data');
+//       return;
+//     }
     
-    // Step 1: Navigate to timetable page
-    await client.post(
-      'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
-      new URLSearchParams({
-        verifyMenu: 'true',
-        authorizedID,
-        _csrf: csrfToken
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      }
-    );
+//     // Step 1: Navigate to timetable page
+//     await client.post(
+//       'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
+//       new URLSearchParams({
+//         verifyMenu: 'true',
+//         authorizedID,
+//         _csrf: csrfToken
+//       }),
+//       {
+//         headers: {
+//           'Content-Type': 'application/x-www-form-urlencoded',
+//           'Referer': 'https://vtop.vit.ac.in/vtop/content',
+//           'X-Requested-With': 'XMLHttpRequest'
+//         }
+//       }
+//     );
     
-    // Wait a bit for server to process
-    await new Promise(resolve => setTimeout(resolve, 500));
+//     // Wait a bit for server to process
+//     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Step 2: Fetch timetable for semester
-    const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/processViewTimeTable',
-      new URLSearchParams({
-        _csrf: csrfToken,
-        semesterSubId: semesterId,
-        authorizedID
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      }
-    );
+//     // Step 2: Fetch timetable for semester
+//     const res = await client.post(
+//       'https://vtop.vit.ac.in/vtop/processViewTimeTable',
+//       new URLSearchParams({
+//         _csrf: csrfToken,
+//         semesterSubId: semesterId,
+//         authorizedID
+//       }),
+//       {
+//         headers: {
+//           'Content-Type': 'application/x-www-form-urlencoded',
+//           'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
+//           'X-Requested-With': 'XMLHttpRequest'
+//         }
+//       }
+//     );
     
-    const $ = cheerio.load(res.data);
+//     const $ = cheerio.load(res.data);
     
-    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
-    const schedule = {};
+//     const days = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+//     const schedule = {};
     
-    // Parse timetable
-    $('table tbody tr').each((i, row) => {
-      const cells = $(row).find('td');
-      const dayCell = $(cells[0]).text().trim();
-      const typeCell = $(cells[1]).text().trim();
+//     // Parse timetable
+//     $('table tbody tr').each((i, row) => {
+//       const cells = $(row).find('td');
+//       const dayCell = $(cells[0]).text().trim();
+//       const typeCell = $(cells[1]).text().trim();
       
-      // Check if this is a day row (has day name in first cell)
-      if (days.includes(dayCell) && typeCell === 'THEORY') {
-        if (!schedule[dayCell]) schedule[dayCell] = [];
+//       // Check if this is a day row (has day name in first cell)
+//       if (days.includes(dayCell) && typeCell === 'THEORY') {
+//         if (!schedule[dayCell]) schedule[dayCell] = [];
         
-        // Parse theory slots (skip first 2 cells - day and type)
-        for (let j = 2; j < cells.length; j++) {
-          const cell = $(cells[j]);
-          const bgcolor = cell.attr('bgcolor');
-          const text = cell.text().trim();
+//         // Parse theory slots (skip first 2 cells - day and type)
+//         for (let j = 2; j < cells.length; j++) {
+//           const cell = $(cells[j]);
+//           const bgcolor = cell.attr('bgcolor');
+//           const text = cell.text().trim();
           
-          // Check if it's a scheduled class (pink background)
-          if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
-            // Parse format: SLOT-COURSE_CODE-TYPE-VENUE-SECTION
-            const parts = text.split('-');
-            if (parts.length >= 4) {
-              schedule[dayCell].push({
-                slot: parts[0],
-                courseCode: parts[1],
-                type: parts[2],
-                venue: parts[3],
-                section: parts[4] || 'ALL'
-              });
-            }
-          }
-        }
-      }
+//           // Check if it's a scheduled class (pink background)
+//           if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
+//             // Parse format: SLOT-COURSE_CODE-TYPE-VENUE-SECTION
+//             const parts = text.split('-');
+//             if (parts.length >= 4) {
+//               schedule[dayCell].push({
+//                 slot: parts[0],
+//                 courseCode: parts[1],
+//                 type: parts[2],
+//                 venue: parts[3],
+//                 section: parts[4] || 'ALL'
+//               });
+//             }
+//           }
+//         }
+//       }
       
-      // Check for LAB row for the same day
-      if (days.includes(dayCell) && typeCell === 'LAB') {
-        // Parse lab slots
-        for (let j = 2; j < cells.length; j++) {
-          const cell = $(cells[j]);
-          const bgcolor = cell.attr('bgcolor');
-          const text = cell.text().trim();
+//       // Check for LAB row for the same day
+//       if (days.includes(dayCell) && typeCell === 'LAB') {
+//         // Parse lab slots
+//         for (let j = 2; j < cells.length; j++) {
+//           const cell = $(cells[j]);
+//           const bgcolor = cell.attr('bgcolor');
+//           const text = cell.text().trim();
           
-          if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
-            const parts = text.split('-');
-            if (parts.length >= 4) {
-              schedule[dayCell].push({
-                slot: parts[0],
-                courseCode: parts[1],
-                type: parts[2],
-                venue: parts[3],
-                section: parts[4] || 'ALL'
-              });
-            }
-          }
-        }
-      }
-    });
+//           if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
+//             const parts = text.split('-');
+//             if (parts.length >= 4) {
+//               schedule[dayCell].push({
+//                 slot: parts[0],
+//                 courseCode: parts[1],
+//                 type: parts[2],
+//                 venue: parts[3],
+//                 section: parts[4] || 'ALL'
+//               });
+//             }
+//           }
+//         }
+//       }
+//     });
     
-    // Display timetable
-    for (const day of days) {
-      if (schedule[day] && schedule[day].length > 0) {
-        console.log(`\n${'═'.repeat(100)}`);
-        console.log(`📆 ${day}`);
-        console.log('═'.repeat(100));
+//     // Display timetable
+//     for (const day of days) {
+//       if (schedule[day] && schedule[day].length > 0) {
+//         console.log(`\n${'═'.repeat(100)}`);
+//         console.log(`📆 ${day}`);
+//         console.log('═'.repeat(100));
         
-        schedule[day].forEach(item => {
-          const icon = item.type === 'LO' ? '🔬' : '📚';
-          console.log(`\n${icon} ${item.slot} - ${item.courseCode}`);
-          console.log(`   📍 ${item.venue}`);
-          console.log(`   👥 ${item.section}`);
-        });
-      }
-    }
+//         schedule[day].forEach(item => {
+//           const icon = item.type === 'LO' ? '🔬' : '📚';
+//           console.log(`\n${icon} ${item.slot} - ${item.courseCode}`);
+//           console.log(`   📍 ${item.venue}`);
+//           console.log(`   👥 ${item.section}`);
+//         });
+//       }
+//     }
     
-    console.log(`\n${'═'.repeat(100)}`);
+//     console.log(`\n${'═'.repeat(100)}`);
     
-    // Summary
-    const totalClasses = Object.values(schedule).reduce((sum, classes) => sum + classes.length, 0);
-    console.log(`\n📊 Total classes this week: ${totalClasses}`);
+//     // Summary
+//     const totalClasses = Object.values(schedule).reduce((sum, classes) => sum + classes.length, 0);
+//     console.log(`\n📊 Total classes this week: ${totalClasses}`);
     
-  } catch (error) {
-    console.error('❌ Timetable fetch error:', error.message);
-  }
-}
+//   } catch (error) {
+//     console.error('❌ Timetable fetch error:', error.message);
+//   }
+// }
 
 async function getProctorDetails() {
   try {
@@ -1387,7 +1387,220 @@ async function getFacultyInfo() {
   }
 }
 
-
+async function getTimetable(semesterId = 'VL20252601') {
+  try {
+    console.log('\n📅 TIMETABLE:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    if (!csrfToken || !authorizedID) {
+      console.log('❌ Missing auth data');
+      return;
+    }
+    
+    // Step 1: Navigate to timetable page
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID,
+        _csrf: csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Fetch timetable
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/processViewTimeTable',
+      new URLSearchParams({
+        _csrf: csrfToken,
+        semesterSubId: semesterId,
+        authorizedID
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    
+    // Slot timings mapping - EXACTLY from the extension
+    const slotTimes = {
+      // Theory slots - Morning
+      'A1': [{ day: 'Monday', time: '08:00 - 09:00 AM' }, { day: 'Wednesday', time: '09:00 - 10:00 AM' }],
+      'B1': [{ day: 'Tuesday', time: '08:00 - 09:00 AM' }, { day: 'Thursday', time: '09:00 - 10:00 AM' }],
+      'C1': [{ day: 'Wednesday', time: '08:00 - 09:00 AM' }, { day: 'Friday', time: '09:00 - 10:00 AM' }],
+      'D1': [{ day: 'Thursday', time: '08:00 - 10:00 AM' }, { day: 'Monday', time: '10:00 - 11:00 AM' }],
+      'E1': [{ day: 'Friday', time: '08:00 - 10:00 AM' }, { day: 'Tuesday', time: '10:00 - 11:00 AM' }],
+      'F1': [{ day: 'Monday', time: '09:00 - 10:00 AM' }, { day: 'Wednesday', time: '10:00 - 11:00 AM' }],
+      'G1': [{ day: 'Tuesday', time: '09:00 - 10:00 AM' }, { day: 'Thursday', time: '10:00 - 11:00 AM' }],
+      
+      // Theory slots - Afternoon  
+      'A2': [{ day: 'Monday', time: '02:00 - 03:00 PM' }, { day: 'Wednesday', time: '03:00 - 04:00 PM' }],
+      'B2': [{ day: 'Tuesday', time: '02:00 - 03:00 PM' }, { day: 'Thursday', time: '03:00 - 04:00 PM' }],
+      'C2': [{ day: 'Wednesday', time: '02:00 - 03:00 PM' }, { day: 'Friday', time: '03:00 - 04:00 PM' }],
+      'D2': [{ day: 'Thursday', time: '02:00 - 04:00 PM' }, { day: 'Monday', time: '04:00 - 05:00 PM' }],
+      'E2': [{ day: 'Friday', time: '02:00 - 04:00 PM' }, { day: 'Tuesday', time: '04:00 - 05:00 PM' }],
+      'F2': [{ day: 'Monday', time: '03:00 - 04:00 PM' }, { day: 'Wednesday', time: '04:00 - 05:00 PM' }],
+      'G2': [{ day: 'Tuesday', time: '03:00 - 04:00 PM' }, { day: 'Thursday', time: '04:00 - 05:00 PM' }],
+      
+      // Theory addon slots
+      'TA1': [{ day: 'Friday', time: '10:00 - 11:00 AM' }],
+      'TB1': [{ day: 'Monday', time: '11:00 - 12:00 PM' }],
+      'TC1': [{ day: 'Tuesday', time: '11:00 - 12:00 PM' }],
+      'TD1': [{ day: 'Friday', time: '12:00 - 01:00 PM' }],
+      'TE1': [{ day: 'Thursday', time: '11:00 - 12:00 PM' }],
+      'TF1': [{ day: 'Friday', time: '11:00 - 12:00 PM' }],
+      'TG1': [{ day: 'Monday', time: '12:00 - 01:00 PM' }],
+      'TAA1': [{ day: 'Tuesday', time: '12:00 - 01:00 PM' }],
+      'TCC1': [{ day: 'Thursday', time: '12:00 - 01:00 PM' }],
+      
+      'TA2': [{ day: 'Friday', time: '04:00 - 05:00 PM' }],
+      'TB2': [{ day: 'Monday', time: '05:00 - 06:00 PM' }],
+      'TC2': [{ day: 'Tuesday', time: '05:00 - 06:00 PM' }],
+      'TD2': [{ day: 'Wednesday', time: '05:00 - 06:00 PM' }],
+      'TE2': [{ day: 'Thursday', time: '05:00 - 06:00 PM' }],
+      'TF2': [{ day: 'Friday', time: '05:00 - 06:00 PM' }],
+      'TG2': [{ day: 'Monday', time: '06:00 - 07:00 PM' }],
+      'TAA2': [{ day: 'Tuesday', time: '06:00 - 07:00 PM' }],
+      'TBB2': [{ day: 'Wednesday', time: '06:00 - 07:00 PM' }],
+      'TCC2': [{ day: 'Thursday', time: '06:00 - 07:00 PM' }],
+      'TDD2': [{ day: 'Friday', time: '06:00 - 07:00 PM' }],
+      
+      // Lab slots - Morning (only odd numbered)
+      'L1': [{ day: 'Monday', time: '08:00 - 09:50 AM' }],
+      'L3': [{ day: 'Monday', time: '09:51 - 11:40 AM' }],
+      'L5': [{ day: 'Monday', time: '11:40 AM - 01:30 PM' }],
+      'L7': [{ day: 'Tuesday', time: '08:00 - 09:50 AM' }],
+      'L9': [{ day: 'Tuesday', time: '09:51 - 11:40 AM' }],
+      'L11': [{ day: 'Tuesday', time: '11:40 AM - 01:30 PM' }],
+      'L13': [{ day: 'Wednesday', time: '08:00 - 09:50 AM' }],
+      'L15': [{ day: 'Wednesday', time: '09:51 - 11:40 AM' }],
+      'L17': [{ day: 'Wednesday', time: '11:40 AM - 01:30 PM' }],
+      'L19': [{ day: 'Thursday', time: '08:00 - 09:50 AM' }],
+      'L21': [{ day: 'Thursday', time: '09:51 - 11:40 AM' }],
+      'L23': [{ day: 'Thursday', time: '11:40 AM - 01:30 PM' }],
+      'L25': [{ day: 'Friday', time: '08:00 - 09:50 AM' }],
+      'L27': [{ day: 'Friday', time: '09:51 - 11:40 AM' }],
+      'L29': [{ day: 'Friday', time: '11:40 AM - 01:30 PM' }],
+      
+      // Lab slots - Afternoon (only odd numbered)
+      'L31': [{ day: 'Monday', time: '02:00 - 03:50 PM' }],
+      'L33': [{ day: 'Monday', time: '03:51 - 05:40 PM' }],
+      'L35': [{ day: 'Monday', time: '05:40 - 07:30 PM' }],
+      'L37': [{ day: 'Tuesday', time: '02:00 - 03:50 PM' }],
+      'L39': [{ day: 'Tuesday', time: '03:51 - 05:40 PM' }],
+      'L41': [{ day: 'Tuesday', time: '05:40 - 07:30 PM' }],
+      'L43': [{ day: 'Wednesday', time: '02:00 - 03:50 PM' }],
+      'L45': [{ day: 'Wednesday', time: '03:51 - 05:40 PM' }],
+      'L47': [{ day: 'Wednesday', time: '05:40 - 07:30 PM' }],
+      'L49': [{ day: 'Thursday', time: '02:00 - 03:50 PM' }],
+      'L51': [{ day: 'Thursday', time: '03:51 - 05:40 PM' }],
+      'L53': [{ day: 'Thursday', time: '05:40 - 07:30 PM' }],
+      'L55': [{ day: 'Friday', time: '02:00 - 03:50 PM' }],
+      'L57': [{ day: 'Friday', time: '03:51 - 05:40 PM' }],
+      'L59': [{ day: 'Friday', time: '05:40 - 07:30 PM' }]
+    };
+    
+    const courses = [];
+    const schedule = {
+      Monday: [],
+      Tuesday: [],
+      Wednesday: [],
+      Thursday: [],
+      Friday: []
+    };
+    
+    // Parse course table
+    const table = $('tbody').first();
+    const rows = table.find('tr');
+    
+    rows.each((i, row) => {
+      if (i < 2 || i >= rows.length - 2) return;
+      
+      const cells = $(row).find('td');
+      if (cells.length < 8) return;
+      
+      const courseCodeTitle = $(cells[2]).text().trim();
+      const slotVenue = $(cells[7]).text().replace(/(\r\n|\n|\r)/gm, '').trim();
+      const facNameSchool = $(cells[8]).text().replace(/(\r\n|\n|\r)/gm, '').trim();
+      
+      if (!courseCodeTitle) return;
+      
+      const codeTitle = courseCodeTitle.split('-');
+      const courseCode = codeTitle[0]?.trim() || '';
+      const courseTitle = codeTitle[1]?.trim() || '';
+      
+      const slotVenueParts = slotVenue.split('-');
+      const slot = slotVenueParts[0]?.trim() || '';
+      const venue = slotVenueParts[1]?.trim() || '';
+      
+      const facParts = facNameSchool.split('-');
+      const facName = facParts[0]?.trim() || '';
+      
+      if (courseCode && slot && venue !== 'NIL') {
+        courses.push({ courseCode, courseTitle, slot, venue, facName });
+        
+        // Map to schedule
+        const slots = slot.split('+');
+        slots.forEach(s => {
+          const slotInfo = slotTimes[s];
+          if (slotInfo) {
+            slotInfo.forEach(timeSlot => {
+              schedule[timeSlot.day].push({
+                courseCode,
+                courseTitle,
+                slot: s,
+                time: timeSlot.time,
+                venue,
+                faculty: facName
+              });
+            });
+          }
+        });
+      }
+    });
+    
+    // Sort by time
+    Object.keys(schedule).forEach(day => {
+      schedule[day].sort((a, b) => a.time.localeCompare(b.time));
+    });
+    
+    // Display
+    ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => {
+      if (schedule[day].length > 0) {
+        console.log(`\n${'═'.repeat(110)}`);
+        console.log(`📆 ${day.toUpperCase()}`);
+        console.log('═'.repeat(110));
+        
+        schedule[day].forEach(cls => {
+          const icon = cls.slot.startsWith('L') ? '🔬' : '📚';
+          const shortTitle = cls.courseTitle.length > 35 ? cls.courseTitle.substring(0, 32) + '...' : cls.courseTitle;
+          console.log(`${icon} ${cls.time.padEnd(22)} │ ${cls.courseCode.padEnd(10)} - ${shortTitle.padEnd(35)}`);
+          console.log(`   📍 ${cls.venue.padEnd(18)} │ 👨‍🏫 ${cls.faculty}`);
+        });
+      }
+    });
+    
+    console.log(`\n${'═'.repeat(110)}`);
+    const totalClasses = Object.values(schedule).reduce((sum, classes) => sum + classes.length, 0);
+    console.log(`📊 Total classes this week: ${totalClasses}`);
+    
+  } catch (error) {
+    console.error('❌ Timetable error:', error.message);
+  }
+}
 (async () => {
   if (await login()) {
     // await getCGPA();
@@ -1396,12 +1609,13 @@ async function getFacultyInfo() {
     // await getAssignments();
     // await getLeaveHistory();
     // await getGrades();
-    await getPaymentHistory();
+    // await getPaymentHistory();
     // await getTimetable();
     // await getProctorDetails();
     // await getGradeHistory();
-    await getCounsellingRank();
+    // await getCounsellingRank();
     // await getFacultyInfo();
+    await getTimetable();
     console.log('\n✅ All done! Press Ctrl+C to exit');
     setInterval(() => {}, 30000);
   } else {
