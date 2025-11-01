@@ -108,7 +108,6 @@ async function login() {
       
       if (!captchaBuffer) throw new Error('CAPTCHA not found');
       
-      
       const captcha = await solveUsingViboot(captchaBuffer);
       console.log('   🧠 Solved as:', captcha);
       
@@ -158,7 +157,7 @@ async function login() {
         
         // Fetch dashboard
         const dashboardRes = await client.get('https://vtop.vit.ac.in/vtop/content');
-        
+         
         // Extract auth data
         globalCsrf = getCsrf(dashboardRes.data);
         globalAuthID = dashboardRes.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
@@ -189,6 +188,10 @@ async function getCGPA() {
     console.log('\n📊 Fetching CGPA...');
     const { csrfToken, authorizedID } = await getAuthData();
     
+    if (!csrfToken || !authorizedID) {
+      console.log('❌ Missing auth data');
+      return;
+    }
     
     const res = await client.post(
       'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
