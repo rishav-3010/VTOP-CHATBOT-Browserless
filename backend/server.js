@@ -16,7 +16,7 @@ const demoUsername = process.env.VTOP_USERNAME;
 const demoPassword = process.env.VTOP_PASSWORD;
 
 const sessions = {}; // Store sessions separately
-const MAX_HISTORY = 10; // Keep last 10 messages for context
+const MAX_HISTORY = 5; // Keep last 10 messages for context
 
 function createSession() {
   const sessionId = require('crypto').randomBytes(16).toString('hex');
