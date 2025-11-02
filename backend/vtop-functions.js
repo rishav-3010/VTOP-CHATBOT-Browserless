@@ -397,6 +397,63 @@ const assignment = {
   }
 }
 
+async function getLoginHistory(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'loginHistory')) {
+      console.log(`[${sessionId}] Cache hit: loginHistory`);
+      return session.cache.loginHistory.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Login History...`);
+    const client = getClient(sessionId);
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/show/login/history',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        x: new Date().toUTCString()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const loginHistory = [];
+    
+    $('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length > 0) {
+        const entry = {
+          date: $(cells[0]).text().trim(),
+          time: $(cells[1]).text().trim(),
+          ipAddress: $(cells[2]).text().trim(),
+          status: $(cells[3]).text().trim()
+        };
+        if (entry.date) {
+          loginHistory.push(entry);
+        }
+      }
+    });
+    
+    if (session) {
+      session.cache.loginHistory = { data: loginHistory, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: loginHistory`);
+    }
+    
+    console.log(`[${sessionId}] Login History fetched for ${authData.authorizedID}`);
+    return loginHistory.slice(0, 10);
+  } catch (error) {
+    console.error(`[${sessionId}] Login History fetch error:`, error.message);
+    throw error;
+  }
+}
+
 async function getExamSchedule(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'examSchedule')) {
@@ -1484,6 +1541,7 @@ module.exports = {
   getAttendance,
   getMarks,
   getAssignments,
+  getLoginHistory,
   getExamSchedule,
   getTimetable,
   getLeaveHistory,
