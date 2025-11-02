@@ -3,7 +3,22 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loginToVTOP, getAuthData } = require('./vtop-auth');
-const { getCGPA, getAttendance, getAssignments, getMarks, getLoginHistory, getExamSchedule,getTimetable } = require('./vtop-functions');
+const { 
+  getCGPA, 
+  getAttendance, 
+  getAssignments, 
+  getMarks,
+  getLoginHistory,
+  getExamSchedule,
+  getTimetable,
+  getLeaveHistory,
+  getGrades,
+  getPaymentHistory,
+  getProctorDetails,
+  getGradeHistory,
+  getCounsellingRank,
+  getFacultyInfo,
+} = require('./vtop-functions');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,7 +31,7 @@ const demoUsername = process.env.VTOP_USERNAME;
 const demoPassword = process.env.VTOP_PASSWORD;
 
 const sessions = {}; // Store sessions separately
-const MAX_HISTORY = 5; // Keep last 10 messages for context
+const MAX_HISTORY = 5; // Keep last 5 messages for context
 
 function createSession() {
   const sessionId = require('crypto').randomBytes(16).toString('hex');
@@ -25,14 +40,20 @@ function createSession() {
     conversationHistory: [],
     currentCredentials: {},
     cache: {
-      cgpa: { data: null, timestamp: 0 },
-      attendance: { data: null, timestamp: 0 },
-      marks: { data: null, timestamp: 0 },
-      assignments: { data: null, timestamp: 0 },
-      loginHistory: { data: null, timestamp: 0 },
-      examSchedule: { data: null, timestamp: 0 },
-      timetable: { data: null, timestamp: 0 }  
-    }
+  cgpa: { data: null, timestamp: 0 },
+  attendance: { data: null, timestamp: 0 },
+  marks: { data: null, timestamp: 0 },
+  assignments: { data: null, timestamp: 0 },
+  loginHistory: { data: null, timestamp: 0 },
+  examSchedule: { data: null, timestamp: 0 },
+  timetable: { data: null, timestamp: 0 },
+  leaveHistory: { data: null, timestamp: 0 },
+  grades: { data: null, timestamp: 0 },
+  paymentHistory: { data: null, timestamp: 0 },
+  proctorDetails: { data: null, timestamp: 0 },
+  gradeHistory: { data: null, timestamp: 0 },
+  counsellingRank: { data: null, timestamp: 0 }
+  }
   };
   return sessionId;
 }
@@ -57,30 +78,42 @@ async function recognizeIntent(message, session) {
   Analyze the user's message and return ALL intents they're asking for.
   
   Available functions:
-  - getCGPA: CGPA queries, semester reports, overall performance
-  - getAttendance: Attendance percentage, classes attended, debarment risk
-  - getMarks: Marks, grades, scores, CAT/FAT marks, best/worst subjects
-  - getAssignments: Digital assignments, DA deadlines, urgent tasks
-  - getLoginHistory: Login history, session records
-  - getExamSchedule: Exam schedule, dates, venue
-  - getTimetable: Timetable, schedule, class timings, weekly schedule
-  - general: Greetings, help, unclear requests
-  
-  IMPORTANT: 
-  - If user asks for multiple things, return ALL relevant intents
-  - "Semester report" or "complete overview" = getCGPA,getAttendance,getMarks,getAssignments
-  - "Which subject has lowest/highest X" = getMarks or getAttendance (based on context)
-  - Subject-specific queries still return the main intent (marks/attendance)
-  - Return as comma-separated list
-  
-  Examples:
-    * "Show semester report" → getCGPA,getAttendance,getMarks,getAssignments
-    * "Which subject am I worst at?" → getMarks
-    * "Show attendance and marks" → getAttendance,getMarks
-    * "Am I at risk of debarment?" → getAttendance
-    * "Which deadline is urgent?" → getAssignments
-    * "Show marks for IoT Boards" → getMarks
-  
+- getCGPA: CGPA queries, semester reports, overall performance
+- getAttendance: Attendance percentage, classes attended, debarment risk
+- getMarks: Marks, grades, scores, CAT/FAT marks, best/worst subjects
+- getAssignments: Digital assignments, DA deadlines, urgent tasks
+- getExamSchedule: Exam schedule, dates, venue
+- getLoginHistory: Login history, session records
+- getTimetable: Timetable, schedule, class timings, weekly schedule
+- getLeaveHistory: Leave history, hostel leaves, leave status
+- getGrades: Semester grades, GPA, course grades
+- getPaymentHistory: Fee payments, receipts, transactions
+- getProctorDetails: Proctor information, faculty advisor
+- getGradeHistory: Complete academic history, grade distribution, curriculum progress
+- getCounsellingRank: Hostel counselling rank, slot, timings
+- getFacultyInfo: Faculty search, contact details, open hours
+- general: Greetings, help, unclear requests
+
+IMPORTANT:
+- If user asks for multiple things, return ALL relevant intents
+- "Semester report" or "complete overview" = getCGPA,getAttendance,getMarks,getAssignments
+- "Which subject has lowest/highest X" = getMarks or getAttendance (based on context)
+- Subject-specific queries still return the main intent (marks/attendance)
+- "Academic history" or "all grades" = getGradeHistory
+- "Faculty" or "professor" queries = getFacultyInfo
+- Return as comma-separated list
+
+Examples:
+  * "Show semester report" → getCGPA,getAttendance,getMarks,getAssignments
+  * "Which subject am I worst at?" → getMarks
+  * "Show attendance and marks" → getAttendance,getMarks
+  * "Am I at risk of debarment?" → getAttendance
+  * "Which deadline is urgent?" → getAssignments
+  * "Show marks for IoT Boards" → getMarks
+  * "Show my leave history" → getLeaveHistory
+  * "What's my hostel counselling rank?" → getCounsellingRank
+  * "Find faculty named Yokesh" → getFacultyInfo
+  * "Show complete academic history" → getGradeHistory
   User's message: "${message}"
   
   Respond with ONLY the function names, comma-separated. No explanations.
@@ -291,6 +324,166 @@ async function generateResponse(intent, data, originalMessage, session) {
     Also if there is lab sessions include them appropriately like slot L35+L36 is one column not separately
   `;
   break;
+
+    case 'getleavehistory':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their leave history data: ${JSON.stringify(data, null, 2)}
+    
+    Format as a markdown table with columns:
+    | Place | Reason | Type | From → To | Status |
+    
+    Use emojis for status:
+    - ✅ for APPROVED (not cancelled)
+    - ❌ for CANCELLED
+    - ⏳ for PENDING
+    
+    After the table, add a summary with:
+    - Total leaves taken
+    - Approved vs cancelled leaves
+    - Any patterns (frequent leaves, etc.)
+    
+    Use markdown formatting for clarity.
+  `;
+  break;
+
+case 'getgrades':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their semester grades data: ${JSON.stringify(data, null, 2)}
+    
+    Create a markdown table with columns:
+    | Course Code | Course Title | Credits | Total | Grade |
+    
+    Use grade emojis:
+    - 🌟 for S grade
+    - ✅ for A grade
+    - 👍 for B grade
+    - 📘 for C grade
+    - 📙 for D grade
+    - ⚠️ for E grade
+    - ❌ for F grade
+    
+    After the table, show:
+    - GPA for this semester
+    - Total courses
+    - Grade distribution summary
+    
+    Use markdown formatting (bold headers, emphasis).
+  `;
+  break;
+
+case 'getpaymenthistory':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their payment history: ${JSON.stringify(data, null, 2)}
+    
+    Format as a markdown table with columns:
+    | Invoice No | Receipt No | Date | Amount | Campus |
+    
+    After the table, add:
+    - Total amount paid
+    - Total transactions
+    - Latest payment date
+    
+    Use markdown formatting and include ₹ symbol for amounts.
+  `;
+  break;
+
+case 'getproctordetails':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their proctor details: ${JSON.stringify(data, null, 2)}
+    
+    Format the proctor information in a clean way:
+    - Name
+    - Designation
+    - Department
+    - School
+    - Email
+    - Cabin number
+    
+    Use emojis like 👨‍🏫 for name, 📧 for email, 📍 for cabin.
+    Use markdown formatting for readability.
+  `;
+  break;
+
+case 'getgradehistory':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their complete grade history: ${JSON.stringify(data, null, 2)}
+    
+    Create a comprehensive academic history report:
+    
+    1. **Grade Distribution** (with emojis):
+       Show count for each grade (S, A, B, C, D, E, F, P)
+    
+    2. **Overall Performance**:
+       - CGPA
+       - Total courses completed
+       - Total credits registered vs earned
+    
+    3. **Curriculum Progress**:
+       Show progress for each requirement type (Foundation Core, Discipline Core, etc.)
+       Use ✅ for completed, ⏳ for in-progress
+    
+    4. **Recent Courses** (last 5-10 courses):
+       Table with: Course | Grade | Credits | Exam Month
+    
+    Use markdown formatting extensively.
+  `;
+  break;
+
+case 'getcounsellingrank':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their counselling rank details: ${JSON.stringify(data, null, 2)}
+    
+    Format the counselling information clearly:
+    - 🎯 Counselling Rank
+    - 👥 Group
+    - 🎫 Slot
+    - ⏰ Report Time
+    - 📍 Venue
+    - 📅 Counseling Date
+    
+    Use emojis and markdown formatting for emphasis.
+  `;
+  break;
+
+case 'getfacultyinfo':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's the faculty information: ${JSON.stringify(data, null, 2)}
+    
+    HANDLE THESE SCENARIOS:
+    
+    1. If there's an ERROR (data.error exists):
+       - Show the error message from data.error
+       - Give helpful suggestions (check spelling, use at least 3 characters, etc.)
+    
+    2. If MULTIPLE FACULTIES found (data.requiresSelection === true):
+       - Show data.message
+       - List all faculties with:
+         * Name
+         * Designation
+         * School
+       - Ask user to be more specific or choose one
+    
+    3. If SINGLE FACULTY details provided:
+       - Format clearly with:
+         * 👤 Name: [name]
+         * 🏢 Designation: [designation]
+         * 🏛️ Department: [details['Name of Department']]
+         * 🎓 School: [details['School / Centre Name'] or school]
+         * 📧 Email: [details['E-Mail Id']]
+         * 📍 Cabin: [details['Cabin Number']]
+         * ⏰ Open Hours (if openHours array has data):
+           List each day and timing
+    
+    Use markdown formatting for readability and emojis for visual appeal.
+  `;
+  break;
     default:
   // If this is the first message (conversation just started), send context
   if (session.conversationHistory.length <= 2) {
@@ -318,7 +511,7 @@ async function generateResponse(intent, data, originalMessage, session) {
       acknowledge that you can fetch that data for them and ask if they'd like you to show it.
     `;
   }
-  break;     
+  break;
   }
 
   try {
@@ -383,7 +576,7 @@ if (allData.marks && intents.includes('getmarks')) {
   }
   
   // Exam Schedule
-  if (allData.examSchedule && intents.includes('getexamschedule')) {
+if (allData.examSchedule && intents.includes('getexamschedule')) {
     dataContext += `\nExam Schedule: ${JSON.stringify(allData.examSchedule, null, 2)}`;
     promptSections.push(`For Exam Schedule: Create separate markdown tables for each exam type (FAT, CAT1, CAT2) with columns: | Course Code | Course Title | Date | Time | Venue | Seat No |. Then add a summary section with: Exam dates timeline, Reporting times, Important reminders. Use markdown formatting (bold headers, emphasis for important dates).`);
   }
@@ -393,7 +586,49 @@ if (allData.timetable && intents.includes('gettimetable')) {
   dataContext += `\nTimetable Data: ${JSON.stringify(allData.timetable, null, 2)}`;
   promptSections.push(`For Timetable: Create day-wise tables (Monday-Friday) with columns: Time | Course | Venue | Faculty. Add a course summary with total classes per week and observations.`);
 }
-  
+
+// Leave History
+if (allData.leaveHistory && intents.includes('getleavehistory')) {
+  dataContext += `\nLeave History: ${JSON.stringify(allData.leaveHistory, null, 2)}`;
+  promptSections.push(`For Leave History: Create a table with columns: | Place | Reason | Type | From → To | Status |. Use ✅ for approved, ❌ for cancelled, ⏳ for pending. Add summary with total leaves and approval rate.`);
+}
+
+// Grades
+if (allData.grades && intents.includes('getgrades')) {
+  dataContext += `\nGrades Data: ${JSON.stringify(allData.grades, null, 2)}`;
+  promptSections.push(`For Grades: Create a table with columns: | Course Code | Course Title | Credits | Total | Grade |. Use grade emojis (🌟 S, ✅ A, 👍 B, etc.). Show GPA and grade distribution summary.`);
+}
+
+// Payment History
+if (allData.paymentHistory && intents.includes('getpaymenthistory')) {
+  dataContext += `\nPayment History: ${JSON.stringify(allData.paymentHistory, null, 2)}`;
+  promptSections.push(`For Payment History: Create a table with columns: | Invoice No | Receipt No | Date | Amount | Campus |. Show total amount paid and transaction count.`);
+}
+
+// Proctor Details
+if (allData.proctorDetails && intents.includes('getproctordetails')) {
+  dataContext += `\nProctor Details: ${JSON.stringify(allData.proctorDetails, null, 2)}`;
+  promptSections.push(`For Proctor Details: Format with emojis (👨‍🏫 name, 📧 email, 📍 cabin). Include name, designation, department, school, email, cabin.`);
+}
+
+// Grade History
+if (allData.gradeHistory && intents.includes('getgradehistory')) {
+  dataContext += `\nGrade History: ${JSON.stringify(allData.gradeHistory, null, 2)}`;
+  promptSections.push(`For Grade History: Show comprehensive academic report with grade distribution, CGPA, credits, curriculum progress, and recent courses table.`);
+}
+
+// Counselling Rank
+if (allData.counsellingRank && intents.includes('getcounsellingrank')) {
+  dataContext += `\nCounselling Rank: ${JSON.stringify(allData.counsellingRank, null, 2)}`;
+  promptSections.push(`For Counselling Rank: Format with emojis showing rank, group, slot, report time, venue, and counseling date.`);
+}
+
+// Faculty Info
+if (allData.facultyInfo && intents.includes('getfacultyinfo')) {
+  dataContext += `\nFaculty Info: ${JSON.stringify(allData.facultyInfo, null, 2)}`;
+  promptSections.push(`For Faculty Info: If multiple results, list all. If single result, show details with name, designation, department, school, email, cabin, open hours.`);
+}
+
   // Build the final prompt
   let prompt = `The user asked: "${originalMessage}"
 
@@ -555,6 +790,28 @@ app.post('/api/chat', async (req, res) => {
             case 'gettimetable':
   allData.timetable = await getTimetable(authData, session, sessionId);
   break;
+            case 'getleavehistory':
+  allData.leaveHistory = await getLeaveHistory(authData, session, sessionId);
+  break;
+case 'getgrades':
+  allData.grades = await getGrades(authData, session, sessionId);
+  break;
+case 'getpaymenthistory':
+  allData.paymentHistory = await getPaymentHistory(authData, session, sessionId);
+  break;
+case 'getproctordetails':
+  allData.proctorDetails = await getProctorDetails(authData, session, sessionId);
+  break;
+case 'getgradehistory':
+  allData.gradeHistory = await getGradeHistory(authData, session, sessionId);
+  break;
+case 'getcounsellingrank':
+  allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
+  break;
+case 'getfacultyinfo':
+  // Faculty info requires facultyName parameter - handle separately
+  console.log(`[${sessionId}] Faculty info requires name parameter`);
+  break;
           }
         } catch (error) {
           console.error(`[${sessionId}] Error fetching ${intent}:`, error.message);
@@ -641,6 +898,136 @@ app.post('/api/chat', async (req, res) => {
     response = "Sorry, I couldn't fetch your timetable right now. Please try again.";
   }
   break;
+
+  case 'getleavehistory':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.leaveHistory = await getLeaveHistory(authData, session, sessionId);
+    response = await generateResponse(intent, allData.leaveHistory, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your leave history right now. Please try again.";
+  }
+  break;
+
+case 'getgrades':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.grades = await getGrades(authData, session, sessionId);
+    response = await generateResponse(intent, allData.grades, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your grades right now. Please try again.";
+  }
+  break;
+
+case 'getpaymenthistory':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.paymentHistory = await getPaymentHistory(authData, session, sessionId);
+    response = await generateResponse(intent, allData.paymentHistory, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your payment history right now. Please try again.";
+  }
+  break;
+
+case 'getproctordetails':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.proctorDetails = await getProctorDetails(authData, session, sessionId);
+    response = await generateResponse(intent, allData.proctorDetails, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your proctor details right now. Please try again.";
+  }
+  break;
+
+case 'getgradehistory':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.gradeHistory = await getGradeHistory(authData, session, sessionId);
+    response = await generateResponse(intent, allData.gradeHistory, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your grade history right now. Please try again.";
+  }
+  break;
+
+case 'getcounsellingrank':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
+    response = await generateResponse(intent, allData.counsellingRank, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your counselling rank right now. Please try again.";
+  }
+  break;
+
+case 'getfacultyinfo':
+  try {
+    const authData = await getAuthData(sessionId);
+    
+    // Improved faculty name extraction
+    let facultyName = message;
+    
+    // Remove common phrases from the beginning/end
+    const phrasesToRemove = [
+      /^show\s+(me\s+)?/gi,
+      /^find\s+(me\s+)?/gi,
+      /^search\s+(for\s+)?/gi,
+      /^get\s+(me\s+)?/gi,
+      /^fetch\s+(me\s+)?/gi,
+      /^tell\s+me\s+about\s+/gi,
+      /^who\s+is\s+/gi,
+      /^give\s+me\s+/gi,
+      /^i\s+want\s+/gi,
+      /^can\s+you\s+(show|find|get|tell)\s+(me\s+)?/gi
+    ];
+    
+    phrasesToRemove.forEach(pattern => {
+      facultyName = facultyName.replace(pattern, '');
+    });
+    
+    // Remove faculty-related keywords
+    const keywordsToRemove = [
+      /\bfaculty\b/gi,
+      /\bprofessor\b/gi,
+      /\bteacher\b/gi,
+      /\bsir\b/gi,
+      /\bmadam\b/gi,
+      /\bma'am\b/gi,
+      /\bmam\b/gi,
+      /\binfo(rmation)?\b/gi,
+      /\bdetails?\b/gi,
+      /\babout\b/gi,
+      /\bfor\b/gi,
+      /\bof\b/gi,
+      /\bnamed\b/gi
+    ];
+    
+    keywordsToRemove.forEach(pattern => {
+      facultyName = facultyName.replace(pattern, '');
+    });
+    
+    // Clean up punctuation and extra spaces
+    facultyName = facultyName
+      .replace(/\?|!|\./g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log(`[${sessionId}] Original message: "${message}"`);
+    console.log(`[${sessionId}] Extracted faculty name: "${facultyName}"`);
+    
+    // If extraction failed, ask user
+    if (!facultyName || facultyName.length < 3) {
+      response = "Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Find faculty Rajesh Kumar'";
+      break;
+    }
+    
+    allData.facultyInfo = await getFacultyInfo(authData, session, sessionId, facultyName);
+    response = await generateResponse(intent, allData.facultyInfo, message, session);
+  } catch (error) {
+    console.error(`[${sessionId}] Faculty info error:`, error);
+    response = "Sorry, I couldn't fetch faculty information right now. Please make sure you've provided the faculty name correctly and try again.";
+  }
+  break;
+
         default:
           response = await generateResponse(intent, null, message, session);
           break;
@@ -693,6 +1080,37 @@ app.post('/api/logout', async (req, res) => {
   
   res.json({ success: true });
 });
+
+// ===== FACULTY SELECTION ENDPOINT =====
+app.post('/api/faculty/select', async (req, res) => {
+  try {
+    const { empId, sessionId } = req.body;
+    const session = getSession(sessionId);
+
+    if (!session || !session.isLoggedIn) {
+      return res.json({ 
+        response: "Session expired. Please refresh the page.",
+        data: null 
+      });
+    }
+
+    const authData = await getAuthData(sessionId);
+    const facultyData = await getFacultyDetailsByEmpId(authData, session, sessionId, empId);
+    
+    res.json({ 
+      success: true,
+      data: facultyData 
+    });
+
+  } catch (error) {
+    console.error('Faculty selection error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // Serve React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
