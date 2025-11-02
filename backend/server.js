@@ -3,11 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loginToVTOP, getAuthData } = require('./vtop-auth');
-const { 
-  getCGPA, 
-  getAttendance, 
-  getAssignments, 
-  getMarks, 
+const {
+  getCGPA,
+  getAttendance,
+  getAssignments,
+  getMarks,
+  getLoginHistory,
   getExamSchedule,
   getTimetable,
   getLeaveHistory,
@@ -30,7 +31,7 @@ const demoUsername = process.env.VTOP_USERNAME;
 const demoPassword = process.env.VTOP_PASSWORD;
 
 const sessions = {}; // Store sessions separately
-const MAX_HISTORY = 10; // Keep last 10 messages for context
+const MAX_HISTORY = 5; // Keep last 5 messages for context
 
 function createSession() {
   const sessionId = require('crypto').randomBytes(16).toString('hex');
@@ -43,6 +44,7 @@ function createSession() {
   attendance: { data: null, timestamp: 0 },
   marks: { data: null, timestamp: 0 },
   assignments: { data: null, timestamp: 0 },
+  loginHistory: { data: null, timestamp: 0 },
   examSchedule: { data: null, timestamp: 0 },
   timetable: { data: null, timestamp: 0 },
   leaveHistory: { data: null, timestamp: 0 },
@@ -81,6 +83,7 @@ async function recognizeIntent(message, session) {
 - getMarks: Marks, grades, scores, CAT/FAT marks, best/worst subjects
 - getAssignments: Digital assignments, DA deadlines, urgent tasks
 - getExamSchedule: Exam schedule, dates, venue
+- getLoginHistory: Login history, session records
 - getTimetable: Timetable, schedule, class timings, weekly schedule
 - getLeaveHistory: Leave history, hostel leaves, leave status
 - getGrades: Semester grades, GPA, course grades
@@ -89,7 +92,7 @@ async function recognizeIntent(message, session) {
 - getGradeHistory: Complete academic history, grade distribution, curriculum progress
 - getCounsellingRank: Hostel counselling rank, slot, timings
 - getFacultyInfo: Faculty search, contact details, open hours
-- general: Greetings, help, unclear requests
+- general: Greetings, help, unclear requests,tell user about available functions
 
 IMPORTANT:
 - If user asks for multiple things, return ALL relevant intents
@@ -254,7 +257,24 @@ async function generateResponse(intent, data, originalMessage, session) {
   `;
   break;
 
-    
+    case 'getloginhistory':
+      prompt = `
+        The user asked: "${originalMessage}"
+        Here's their login history data: ${JSON.stringify(data, null, 2)}
+        
+        Format as a markdown table with columns:
+        | Date | Time | IP Address | Status |
+        
+        Fill in the login history data.
+        
+        Then add a summary with:
+        - Total logins
+        - Most recent login
+        - Any suspicious activity (if applicable)
+        
+        Use markdown formatting for clarity.
+      `;
+      break;
 
     case 'getexamschedule':
       prompt = `
@@ -279,7 +299,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     The user asked: "${originalMessage}"
     Here's their timetable data: ${JSON.stringify(data, null, 2)}
     
-    Format the timetable in a clean, day-wise view:
+    Format the timetable in a clean, day-wise view:(Also if user is asking for a particular day then show only for that day not all)
     
     ## 📅 Weekly Schedule
     
@@ -291,7 +311,6 @@ async function generateResponse(intent, data, originalMessage, session) {
     | ... | ... | ... | ... |
     
     After all days, add a Course Summary section with:
-    - List all courses with their slots
     - Total classes per week
     - Any observations (like back-to-back classes, long gaps, etc.)
     
@@ -302,6 +321,7 @@ async function generateResponse(intent, data, originalMessage, session) {
     - 🏢 for venues
     
     Use markdown formatting for clarity.
+    Also if there is lab sessions include them appropriately like slot L35+L36 is one column not separately
   `;
   break;
 
@@ -471,11 +491,20 @@ case 'getfacultyinfo':
       You are a VTOP chatbot assistant for VIT students.
       
       You can help with:
-      - View CGPA and semester reports
-      - Check marks and identify best/worst performing subjects
-      - Monitor attendance and debarment risk
-      - Track assignment deadlines
-      - View exam schedules
+      - 📊 View CGPA and semester reports
+      - 📝 Check marks and identify best/worst performing subjects
+      - 📅 Monitor attendance and debarment risk
+      - 📋 Track assignment deadlines
+      - 📆 View exam schedules (FAT, CAT1, CAT2)
+      - 🕐 Check class timetable and weekly schedule
+      - 🏖️ View leave history and approval status
+      - 🎓 Check semester grades and GPA
+      - 💳 View payment history and fee receipts
+      - 👨‍🏫 Get proctor details and contact information
+      - 📚 View complete academic grade history
+      - 🎯 Check hostel counselling rank and slot
+      - 🔍 Search for faculty information and contact details
+      - 🔐 View login history and session records
       
       This is the user's message: "${originalMessage}"
       
@@ -761,6 +790,9 @@ app.post('/api/chat', async (req, res) => {
             case 'getassignments':
               allData.assignments = await getAssignments(authData, session, sessionId);
               break;
+            case 'getloginhistory':
+              allData.loginHistory = await getLoginHistory(authData, session, sessionId);
+              break;
             case 'getexamschedule':
               allData.examSchedule = await getExamSchedule(authData, session, sessionId);
               break;
@@ -843,6 +875,16 @@ case 'getfacultyinfo':
             response = await generateResponse(intent, allData.marks, message, session);
           } catch (error) {
             response = "Sorry, I couldn't fetch your marks right now. Please try again.";
+          }
+          break;
+
+        case 'getloginhistory':
+          try {
+            const authData = await getAuthData(sessionId);
+            allData.loginHistory = await getLoginHistory(authData, session, sessionId);
+            response = await generateResponse(intent, allData.loginHistory, message, session);
+          } catch (error) {
+            response = "Sorry, I couldn't fetch your login history right now. Please try again.";
           }
           break;
 

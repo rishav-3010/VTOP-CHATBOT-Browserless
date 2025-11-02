@@ -743,141 +743,6 @@ async function getPaymentHistory() {
   }
 }
 
-// async function getTimetable(semesterId = 'VL20252601') {
-//   try {
-//     console.log('\n📅 TIMETABLE:');
-//     const { csrfToken, authorizedID } = await getAuthData();
-    
-//     if (!csrfToken || !authorizedID) {
-//       console.log('❌ Missing auth data');
-//       return;
-//     }
-    
-//     // Step 1: Navigate to timetable page
-//     await client.post(
-//       'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
-//       new URLSearchParams({
-//         verifyMenu: 'true',
-//         authorizedID,
-//         _csrf: csrfToken
-//       }),
-//       {
-//         headers: {
-//           'Content-Type': 'application/x-www-form-urlencoded',
-//           'Referer': 'https://vtop.vit.ac.in/vtop/content',
-//           'X-Requested-With': 'XMLHttpRequest'
-//         }
-//       }
-//     );
-    
-//     // Wait a bit for server to process
-//     await new Promise(resolve => setTimeout(resolve, 500));
-    
-//     // Step 2: Fetch timetable for semester
-//     const res = await client.post(
-//       'https://vtop.vit.ac.in/vtop/processViewTimeTable',
-//       new URLSearchParams({
-//         _csrf: csrfToken,
-//         semesterSubId: semesterId,
-//         authorizedID
-//       }),
-//       {
-//         headers: {
-//           'Content-Type': 'application/x-www-form-urlencoded',
-//           'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable',
-//           'X-Requested-With': 'XMLHttpRequest'
-//         }
-//       }
-//     );
-    
-//     const $ = cheerio.load(res.data);
-    
-//     const days = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
-//     const schedule = {};
-    
-//     // Parse timetable
-//     $('table tbody tr').each((i, row) => {
-//       const cells = $(row).find('td');
-//       const dayCell = $(cells[0]).text().trim();
-//       const typeCell = $(cells[1]).text().trim();
-      
-//       // Check if this is a day row (has day name in first cell)
-//       if (days.includes(dayCell) && typeCell === 'THEORY') {
-//         if (!schedule[dayCell]) schedule[dayCell] = [];
-        
-//         // Parse theory slots (skip first 2 cells - day and type)
-//         for (let j = 2; j < cells.length; j++) {
-//           const cell = $(cells[j]);
-//           const bgcolor = cell.attr('bgcolor');
-//           const text = cell.text().trim();
-          
-//           // Check if it's a scheduled class (pink background)
-//           if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
-//             // Parse format: SLOT-COURSE_CODE-TYPE-VENUE-SECTION
-//             const parts = text.split('-');
-//             if (parts.length >= 4) {
-//               schedule[dayCell].push({
-//                 slot: parts[0],
-//                 courseCode: parts[1],
-//                 type: parts[2],
-//                 venue: parts[3],
-//                 section: parts[4] || 'ALL'
-//               });
-//             }
-//           }
-//         }
-//       }
-      
-//       // Check for LAB row for the same day
-//       if (days.includes(dayCell) && typeCell === 'LAB') {
-//         // Parse lab slots
-//         for (let j = 2; j < cells.length; j++) {
-//           const cell = $(cells[j]);
-//           const bgcolor = cell.attr('bgcolor');
-//           const text = cell.text().trim();
-          
-//           if (bgcolor === '#FC6C85' && text && text !== '-' && text !== 'Lunch') {
-//             const parts = text.split('-');
-//             if (parts.length >= 4) {
-//               schedule[dayCell].push({
-//                 slot: parts[0],
-//                 courseCode: parts[1],
-//                 type: parts[2],
-//                 venue: parts[3],
-//                 section: parts[4] || 'ALL'
-//               });
-//             }
-//           }
-//         }
-//       }
-//     });
-    
-//     // Display timetable
-//     for (const day of days) {
-//       if (schedule[day] && schedule[day].length > 0) {
-//         console.log(`\n${'═'.repeat(100)}`);
-//         console.log(`📆 ${day}`);
-//         console.log('═'.repeat(100));
-        
-//         schedule[day].forEach(item => {
-//           const icon = item.type === 'LO' ? '🔬' : '📚';
-//           console.log(`\n${icon} ${item.slot} - ${item.courseCode}`);
-//           console.log(`   📍 ${item.venue}`);
-//           console.log(`   👥 ${item.section}`);
-//         });
-//       }
-//     }
-    
-//     console.log(`\n${'═'.repeat(100)}`);
-    
-//     // Summary
-//     const totalClasses = Object.values(schedule).reduce((sum, classes) => sum + classes.length, 0);
-//     console.log(`\n📊 Total classes this week: ${totalClasses}`);
-    
-//   } catch (error) {
-//     console.error('❌ Timetable fetch error:', error.message);
-//   }
-// }
 
 async function getProctorDetails() {
   try {
@@ -1114,6 +979,62 @@ async function getGradeHistory() {
     
   } catch (error) {
     console.error('❌ Grade History fetch error:', error.message);
+  }
+}
+
+async function getLeaveStatus() {
+  try {
+    console.log('\n📋 LEAVE STATUS:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    // Navigate to leave section and fetch status
+    await client.post('https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      new URLSearchParams({ verifyMenu: 'true', authorizedID, _csrf: csrfToken }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const res = await client.post('https://vtop.vit.ac.in/vtop/hostels/student/leave/4',
+      new URLSearchParams({ _csrf: csrfToken, authorizedID, status: 'form', control: 'status', x: new Date().toUTCString() }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    console.log('Place'.padEnd(15), 'Reason'.padEnd(25), 'Type'.padEnd(20), 'From → To'.padEnd(35), 'Status');
+    console.log('-'.repeat(110));
+    
+    $('#LeaveAppliedTable tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 8) {
+        const place = $(cells[2]).text().trim();
+        const reason = $(cells[3]).text().trim();
+        const type = $(cells[4]).text().trim();
+        const from = $(cells[5]).text().trim();
+        const to = $(cells[6]).text().trim();
+        const status = $(cells[7]).text().trim();
+        
+        if (place) {
+          const icon = status.includes('APPROVED') ? '✅' : status.includes('REJECTED') ? '❌' : '⏳';
+          console.log(
+            `${icon} ${place.padEnd(12)} ${reason.padEnd(25)} ${type.substring(0, 17).padEnd(20)} ` +
+            `${from} → ${to.padEnd(15)} ${status}`
+          );
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Leave Status error:', error.message);
   }
 }
 
@@ -1610,11 +1531,12 @@ async function getTimetable(semesterId = 'VL20252601') {
     await getLeaveHistory();
     await getGrades();
     await getPaymentHistory();
-    await getTimetable();
     await getProctorDetails();
     await getGradeHistory();
     await getCounsellingRank();
     await getFacultyInfo();
+    await getTimetable();
+    await getLeaveStatus();
     console.log('\n✅ All done! Press Ctrl+C to exit');
     setInterval(() => {}, 30000);
   } else {
