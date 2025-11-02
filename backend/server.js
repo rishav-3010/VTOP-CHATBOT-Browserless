@@ -3,10 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loginToVTOP, getAuthData } = require('./vtop-auth');
-const { 
-  getCGPA, 
-  getAttendance, 
-  getAssignments, 
+const {
+  getCGPA,
+  getAttendance,
+  getAssignments,
   getMarks,
   getLoginHistory,
   getExamSchedule,
