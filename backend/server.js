@@ -92,7 +92,7 @@ async function recognizeIntent(message, session) {
 - getGradeHistory: Complete academic history, grade distribution, curriculum progress
 - getCounsellingRank: Hostel counselling rank, slot, timings
 - getFacultyInfo: Faculty search, contact details, open hours
-- general: Greetings, help, unclear requests
+- general: Greetings, help, unclear requests,tell user about available functions
 
 IMPORTANT:
 - If user asks for multiple things, return ALL relevant intents
@@ -491,11 +491,20 @@ case 'getfacultyinfo':
       You are a VTOP chatbot assistant for VIT students.
       
       You can help with:
-      - View CGPA and semester reports
-      - Check marks and identify best/worst performing subjects
-      - Monitor attendance and debarment risk
-      - Track assignment deadlines
-      - View exam schedules
+      - 📊 View CGPA and semester reports
+      - 📝 Check marks and identify best/worst performing subjects
+      - 📅 Monitor attendance and debarment risk
+      - 📋 Track assignment deadlines
+      - 📆 View exam schedules (FAT, CAT1, CAT2)
+      - 🕐 Check class timetable and weekly schedule
+      - 🏖️ View leave history and approval status
+      - 🎓 Check semester grades and GPA
+      - 💳 View payment history and fee receipts
+      - 👨‍🏫 Get proctor details and contact information
+      - 📚 View complete academic grade history
+      - 🎯 Check hostel counselling rank and slot
+      - 🔍 Search for faculty information and contact details
+      - 🔐 View login history and session records
       
       This is the user's message: "${originalMessage}"
       
