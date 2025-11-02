@@ -397,63 +397,6 @@ const assignment = {
   }
 }
 
-async function getLoginHistory(authData, session, sessionId) {
-  try {
-    if (isCacheValid(session, 'loginHistory')) {
-      console.log(`[${sessionId}] Cache hit: loginHistory`);
-      return session.cache.loginHistory.data;
-    }
-
-    console.log(`[${sessionId}] Fetching Login History...`);
-    const client = getClient(sessionId);
-    
-    const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/show/login/history',
-      new URLSearchParams({
-        _csrf: authData.csrfToken,
-        authorizedID: authData.authorizedID,
-        x: new Date().toUTCString()
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      }
-    );
-    
-    const $ = cheerio.load(res.data);
-    const loginHistory = [];
-    
-    $('tbody tr').each((i, row) => {
-      const cells = $(row).find('td');
-      if (cells.length > 0) {
-        const entry = {
-          date: $(cells[0]).text().trim(),
-          time: $(cells[1]).text().trim(),
-          ipAddress: $(cells[2]).text().trim(),
-          status: $(cells[3]).text().trim()
-        };
-        if (entry.date) {
-          loginHistory.push(entry);
-        }
-      }
-    });
-    
-    if (session) {
-      session.cache.loginHistory = { data: loginHistory, timestamp: Date.now() };
-      console.log(`[${sessionId}] Cache set: loginHistory`);
-    }
-    
-    console.log(`[${sessionId}] Login History fetched for ${authData.authorizedID}`);
-    return loginHistory.slice(0, 10);
-  } catch (error) {
-    console.error(`[${sessionId}] Login History fetch error:`, error.message);
-    throw error;
-  }
-}
-
 async function getExamSchedule(authData, session, sessionId, semesterId = 'VL20252601') {
   try {
     if (isCacheValid(session, 'examSchedule')) {
@@ -832,12 +775,722 @@ async function getTimetable(authData, session, sessionId, semesterId = 'VL202526
   }
 }
 
+async function getLeaveHistory(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'leaveHistory')) {
+      console.log(`[${sessionId}] Cache hit: leaveHistory`);
+      return session.cache.leaveHistory.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Leave History...`);
+    const client = getClient(sessionId);
+    
+    // Step 1: Navigate to leave request section
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Fetch leave history
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/6',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        history: '',
+        form: 'undefined',
+        control: 'history'
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const leaveHistory = [];
+    
+    $('#LeaveHistoryTable tbody tr').each((i, row) => {
+      const allCells = $(row).find('td');
+      
+      if (allCells.length >= 7) {
+        const leave = {
+          place: $(allCells[1]).text().trim(),
+          reason: $(allCells[2]).text().trim(),
+          type: $(allCells[3]).text().trim(),
+          from: $(allCells[4]).text().trim(),
+          to: $(allCells[5]).text().trim(),
+          status: $(allCells[6]).text().trim()
+        };
+        
+        if (leave.place) {
+          leaveHistory.push(leave);
+        }
+      }
+    });
+    
+    if (session) {
+      session.cache.leaveHistory = { data: leaveHistory, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: leaveHistory`);
+    }
+    
+    console.log(`[${sessionId}] Leave History fetched for ${authData.authorizedID}`);
+    return leaveHistory;
+  } catch (error) {
+    console.error(`[${sessionId}] Leave History fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getGrades(authData, session, sessionId, semesterId = 'VL20242505') {
+  try {
+    if (isCacheValid(session, 'grades')) {
+      console.log(`[${sessionId}] Cache hit: grades`);
+      return session.cache.grades.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Grades...`);
+    const client = getClient(sessionId);
+    
+    // Step 1: Navigate to grades page
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeView',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Fetch grades for semester
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView',
+      new URLSearchParams({
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken,
+        semesterSubId: semesterId
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeView',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const grades = [];
+    let gpa = '';
+    
+    const tables = $('table');
+    let targetTable = null;
+    
+    tables.each((i, table) => {
+      const headerText = $(table).find('th').text();
+      if (headerText.includes('Course Code') || headerText.includes('Grade')) {
+        targetTable = $(table);
+      }
+    });
+    
+    if (!targetTable) {
+      targetTable = $('table.table-hover, table.table-bordered').first();
+    }
+    
+    targetTable.find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      
+      if (cells.length === 1 && $(cells[0]).attr('colspan')) {
+        gpa = $(cells[0]).text().trim();
+        return;
+      }
+      
+      if (cells.length < 11) return;
+      
+      const slNo = $(cells[0]).text().trim();
+      if (!slNo || slNo === 'Sl.No.' || isNaN(parseInt(slNo))) return;
+      
+      const grade = {
+        slNo: slNo,
+        courseCode: $(cells[1]).text().trim(),
+        courseTitle: $(cells[2]).text().trim(),
+        courseType: $(cells[3]).text().trim(),
+        creditsL: $(cells[4]).text().trim(),
+        creditsP: $(cells[5]).text().trim(),
+        creditsJ: $(cells[6]).text().trim(),
+        creditsC: $(cells[7]).text().trim(),
+        gradingType: $(cells[8]).text().trim(),
+        total: $(cells[9]).text().trim(),
+        grade: $(cells[10]).text().trim()
+      };
+      
+      if (grade.courseCode) {
+        grades.push(grade);
+      }
+    });
+    
+    const gradesData = { grades, gpa };
+    
+    if (session) {
+      session.cache.grades = { data: gradesData, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: grades`);
+    }
+    
+    console.log(`[${sessionId}] Grades fetched for ${authData.authorizedID}`);
+    return gradesData;
+  } catch (error) {
+    console.error(`[${sessionId}] Grades fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getPaymentHistory(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'paymentHistory')) {
+      console.log(`[${sessionId}] Cache hit: paymentHistory`);
+      return session.cache.paymentHistory.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Payment History...`);
+    const client = getClient(sessionId);
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/finance/getStudentReceipts',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const payments = [];
+    let totalAmount = 0;
+    
+    $('table tbody tr').each((i, row) => {
+      if ($(row).hasClass('table-info')) return;
+      
+      const cells = $(row).find('td');
+      
+      if (cells.length >= 5) {
+        const payment = {
+          invoiceNum: $(cells[0]).text().trim(),
+          receiptNum: $(cells[1]).text().trim(),
+          date: $(cells[2]).text().trim(),
+          amount: $(cells[3]).text().trim(),
+          campus: $(cells[4]).text().trim()
+        };
+        
+        if (payment.invoiceNum) {
+          const amountVal = parseFloat(payment.amount.replace(/,/g, '')) || 0;
+          totalAmount += amountVal;
+          payments.push(payment);
+        }
+      }
+    });
+    
+    const paymentData = { payments, totalAmount };
+    
+    if (session) {
+      session.cache.paymentHistory = { data: paymentData, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: paymentHistory`);
+    }
+    
+    console.log(`[${sessionId}] Payment History fetched for ${authData.authorizedID}`);
+    return paymentData;
+  } catch (error) {
+    console.error(`[${sessionId}] Payment History fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getProctorDetails(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'proctorDetails')) {
+      console.log(`[${sessionId}] Cache hit: proctorDetails`);
+      return session.cache.proctorDetails.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Proctor Details...`);
+    const client = getClient(sessionId);
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/proctor/viewProctorDetails',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const proctorDetails = {};
+    
+    $('table.table tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      
+      if (cells.length >= 2) {
+        const label = $(cells[0]).text().trim();
+        const value = $(cells[1]).text().trim();
+        
+        if (label && value && !label.includes('Image')) {
+          proctorDetails[label] = value;
+        }
+      }
+    });
+    
+    if (session) {
+      session.cache.proctorDetails = { data: proctorDetails, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: proctorDetails`);
+    }
+    
+    console.log(`[${sessionId}] Proctor Details fetched for ${authData.authorizedID}`);
+    return proctorDetails;
+  } catch (error) {
+    console.error(`[${sessionId}] Proctor Details fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getGradeHistory(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'gradeHistory')) {
+      console.log(`[${sessionId}] Cache hit: gradeHistory`);
+      return session.cache.gradeHistory.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Grade History...`);
+    const client = getClient(sessionId);
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    
+    const gradeCount = {
+      'S': 0, 'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0, 'P': 0, 'N': 0
+    };
+    
+    let totalCredits = 0;
+    let earnedCredits = 0;
+    const courses = [];
+    
+    $('table.customTable tbody tr.tableContent').each((i, row) => {
+      const cells = $(row).find('td');
+      
+      if ($(row).attr('id')?.includes('detailsView') || cells.length < 9) return;
+      
+      const slNo = $(cells[0]).text().trim();
+      
+      if (slNo && !isNaN(slNo)) {
+        const course = {
+          slNo: slNo,
+          courseCode: $(cells[1]).text().trim(),
+          courseTitle: $(cells[2]).text().trim(),
+          courseType: $(cells[3]).text().trim(),
+          credits: $(cells[4]).text().trim(),
+          grade: $(cells[5]).text().trim(),
+          examMonth: $(cells[6]).text().trim(),
+          resultDeclared: $(cells[7]).text().trim(),
+          distribution: $(cells[8]).text().trim()
+        };
+        
+        if (course.courseCode) {
+          courses.push(course);
+          
+          const creditVal = parseFloat(course.credits) || 0;
+          totalCredits += creditVal;
+          
+          if (course.grade && course.grade !== '-' && gradeCount.hasOwnProperty(course.grade)) {
+            gradeCount[course.grade]++;
+            
+            if (course.grade !== 'F' && course.grade !== 'N') {
+              earnedCredits += creditVal;
+            }
+          }
+        }
+      }
+    });
+    
+    let cgpa = '0.00';
+    $('table.table.table-hover.table-bordered tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 3) {
+        cgpa = $(cells[2]).text().trim();
+      }
+    });
+    
+    const curriculum = [];
+    $('table.customTable').eq(1).find('tbody tr.tableContent').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length === 3) {
+        const type = $(cells[0]).find('span').first().text().trim();
+        const required = $(cells[1]).text().trim();
+        const earned = $(cells[2]).text().trim();
+        
+        if (type && !type.includes('Total Credits')) {
+          curriculum.push({ type, required, earned });
+        }
+      }
+    });
+    
+    const gradeHistoryData = {
+      courses,
+      gradeCount,
+      totalCredits,
+      earnedCredits,
+      cgpa,
+      curriculum
+    };
+    
+    if (session) {
+      session.cache.gradeHistory = { data: gradeHistoryData, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: gradeHistory`);
+    }
+    
+    console.log(`[${sessionId}] Grade History fetched for ${authData.authorizedID}`);
+    return gradeHistoryData;
+  } catch (error) {
+    console.error(`[${sessionId}] Grade History fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getCounsellingRank(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'counsellingRank')) {
+      console.log(`[${sessionId}] Cache hit: counsellingRank`);
+      return session.cache.counsellingRank.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Counselling Rank...`);
+    const client = getClient(sessionId);
+    
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/counsellingSlotTimings',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const details = {};
+    
+    $('table.table-success tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length === 2) {
+        const label = $(cells[0]).text().trim();
+        const value = $(cells[1]).text().trim();
+        details[label] = value;
+      }
+    });
+    
+    if (session) {
+      session.cache.counsellingRank = { data: details, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: counsellingRank`);
+    }
+    
+    console.log(`[${sessionId}] Counselling Rank fetched for ${authData.authorizedID}`);
+    return details;
+  } catch (error) {
+    console.error(`[${sessionId}] Counselling Rank fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getFacultyInfo(authData, session, sessionId, facultyName) {
+  try {
+    console.log(`[${sessionId}] Fetching Faculty Info for: ${facultyName}`);
+    const client = getClient(sessionId);
+    
+    if (!facultyName || facultyName.length < 3) {
+      console.log(`[${sessionId}] Faculty name too short: ${facultyName}`);
+      return { error: 'Please provide at least 3 characters of the faculty name', faculties: [] };
+    }
+    
+    // Step 1: Navigate to faculty search page
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Search for faculty
+    console.log(`[${sessionId}] Searching with query: ${facultyName.toLowerCase()}`);
+    const searchRes = await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearchForStudent',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        x: new Date().toUTCString(),
+        empId: facultyName.toLowerCase()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    // Parse search results
+    const $search = cheerio.load(searchRes.data);
+    const faculties = [];
+    
+    $search('table tbody tr').each((i, row) => {
+      if (i === 0) return; // Skip header row
+      
+      const cells = $search(row).find('td');
+      if (cells.length >= 4) {
+        const name = $search(cells[0]).text().trim();
+        const designation = $search(cells[1]).text().trim();
+        const school = $search(cells[2]).text().trim();
+        const button = $search(cells[3]).find('button');
+        const empId = button.attr('id') || button.attr('onclick')?.match(/getEmployeeIdNo\(["']([^"']+)["']\)/)?.[1];
+        
+        if (name && empId) {
+          faculties.push({ name, designation, school, empId });
+        }
+      }
+    });
+    
+    if (faculties.length === 0) {
+      console.log(`[${sessionId}] No faculty found for: ${facultyName}`);
+      return { 
+        error: `No faculty found matching "${facultyName}". Please check the spelling and try again.`, 
+        faculties: [] 
+      };
+    }
+    
+    console.log(`[${sessionId}] Found ${faculties.length} faculty member(s)`);
+    
+    // Return search results for multiple faculties (let client choose)
+    if (faculties.length > 1) {
+      return { 
+        faculties, 
+        requiresSelection: true,
+        message: `Found ${faculties.length} faculty members. Please specify which one you'd like to know about.`
+      };
+    }
+    
+    // Auto-fetch details for single result
+    const selectedFaculty = faculties[0];
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 3: Get faculty details
+    const detailsRes = await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        x: new Date().toUTCString(),
+        empId: selectedFaculty.empId
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(detailsRes.data);
+    const details = {};
+    
+    $('table.table-bordered').first().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const label = $(cells[0]).find('b').text().trim();
+        const value = $(cells[1]).text().trim();
+        
+        if (label && value && !label.includes('Image')) {
+          details[label] = value;
+        }
+      }
+    });
+    
+    // Extract open hours
+    const openHours = [];
+    $('table.table-bordered').last().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const day = $(cells[0]).text().trim();
+        const timing = $(cells[1]).text().trim();
+        // Skip header row
+        if (day && timing && day !== 'Week Day') {
+          openHours.push({ day, timing });
+        }
+      }
+    });
+    
+    const facultyData = {
+      name: selectedFaculty.name,
+      designation: selectedFaculty.designation,
+      school: selectedFaculty.school,
+      empId: selectedFaculty.empId,
+      details,
+      openHours
+    };
+    
+    console.log(`[${sessionId}] Faculty details fetched for ${selectedFaculty.name}`);
+    return facultyData;
+  } catch (error) {
+    console.error(`[${sessionId}] Faculty Info fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
+  try {
+    console.log(`[${sessionId}] Fetching Faculty Details for empId: ${empId}`);
+    const client = getClient(sessionId);
+    
+    const detailsRes = await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        x: new Date().toUTCString(),
+        empId: empId
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(detailsRes.data);
+    const details = {};
+    
+    $('table.table-bordered').first().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const label = $(cells[0]).find('b').text().trim();
+        const value = $(cells[1]).text().trim();
+        
+        if (label && value && !label.includes('Image')) {
+          details[label] = value;
+        }
+      }
+    });
+    
+    // Extract open hours
+    const openHours = [];
+    $('table.table-bordered').last().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const day = $(cells[0]).text().trim();
+        const timing = $(cells[1]).text().trim();
+        if (day && timing && day !== 'Week Day') {
+          openHours.push({ day, timing });
+        }
+      }
+    });
+    
+    const facultyData = {
+      details,
+      openHours
+    };
+    
+    console.log(`[${sessionId}] Faculty details fetched`);
+    return facultyData;
+  } catch (error) {
+    console.error(`[${sessionId}] Faculty Details fetch error:`, error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getCGPA,
   getAttendance,
   getMarks,
   getAssignments,
-  getLoginHistory,
   getExamSchedule,
-  getTimetable
+  getTimetable,
+  getLeaveHistory,
+  getGrades,
+  getPaymentHistory,
+  getProctorDetails,
+  getGradeHistory,
+  getCounsellingRank,
+  getFacultyInfo,
 };
