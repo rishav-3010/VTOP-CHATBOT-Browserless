@@ -18,6 +18,7 @@ const {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
+  getAcademicCalendar
 } = require('./vtop-functions');
 
 const app = express();
@@ -52,7 +53,8 @@ function createSession() {
   paymentHistory: { data: null, timestamp: 0 },
   proctorDetails: { data: null, timestamp: 0 },
   gradeHistory: { data: null, timestamp: 0 },
-  counsellingRank: { data: null, timestamp: 0 }
+  counsellingRank: { data: null, timestamp: 0 },
+  academicCalendar: { data: null, timestamp: 0 }
   }
   };
   return sessionId;
@@ -92,6 +94,7 @@ async function recognizeIntent(message, session) {
 - getGradeHistory: Complete academic history, grade distribution, curriculum progress
 - getCounsellingRank: Hostel counselling rank, slot, timings
 - getFacultyInfo: Faculty search, contact details, open hours
+- getAcademicCalendar: Academic calendar, holidays, exam dates, instructional days
 - general: Greetings, help, unclear requests,tell user about available functions
 
 IMPORTANT:
@@ -484,6 +487,39 @@ case 'getfacultyinfo':
     Use markdown formatting for readability and emojis for visual appeal.
   `;
   break;
+  case 'getacademiccalendar':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's the academic calendar data: ${JSON.stringify(data, null, 2)}
+    
+    Format the calendar month-wise with:
+    
+    For each month (July to November):
+    ### 📅 MONTH 2025
+    Show events with appropriate emojis:
+    - 🎯 for First Instructional Day
+    - 📚 for Instructional Days
+    - 🏖️ for Holidays
+    - 📝 for Exams (CAT/FAT)
+    - 📋 for Registration
+    - 🌴 for Vacation/Break
+    - 🎉 for Festivals
+    - 🚫 for Non-instructional/No class days
+    - 📌 for other events
+    
+    Format: Date: Event description
+    
+    After all months, add a Summary section with:
+    - 📊 Total Events
+    - 📚 Instructional Days
+    - 🚫 Non-Instructional Days
+    - 🏖️ Holidays
+    - 📝 Exam Days
+    - 📅 Months Covered
+    
+    Use markdown formatting for clarity and visual appeal.
+  `;
+  break;
     default:
   // If this is the first message (conversation just started), send context
   if (session.conversationHistory.length <= 2) {
@@ -636,6 +672,12 @@ if (allData.counsellingRank && intents.includes('getcounsellingrank')) {
 if (allData.facultyInfo && intents.includes('getfacultyinfo')) {
   dataContext += `\nFaculty Info: ${JSON.stringify(allData.facultyInfo, null, 2)}`;
   promptSections.push(`For Faculty Info: If multiple results, list all. If single result, show details with name, designation, department, school, email, cabin, open hours.`);
+}
+
+// Academic Calendar
+if (allData.academicCalendar && intents.includes('getacademiccalendar')) {
+  dataContext += `\nAcademic Calendar: ${JSON.stringify(allData.academicCalendar, null, 2)}`;
+  promptSections.push(`For Academic Calendar: Show month-wise calendar (July-November) with events using appropriate emojis. Include summary with total events, instructional days, holidays, etc.`);
 }
 
   // Build the final prompt
@@ -820,6 +862,9 @@ case 'getcounsellingrank':
 case 'getfacultyinfo':
   // Faculty info requires facultyName parameter - handle separately
   console.log(`[${sessionId}] Faculty info requires name parameter`);
+  break;
+case 'getacademiccalendar':
+  allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
   break;
           }
         } catch (error) {
@@ -1034,6 +1079,16 @@ case 'getfacultyinfo':
   } catch (error) {
     console.error(`[${sessionId}] Faculty info error:`, error);
     response = "Sorry, I couldn't fetch faculty information right now. Please make sure you've provided the faculty name correctly and try again.";
+  }
+  break;
+
+case 'getacademiccalendar':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
+    response = await generateResponse(intent, allData.academicCalendar, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch the academic calendar right now. Please try again.";
   }
   break;
 
