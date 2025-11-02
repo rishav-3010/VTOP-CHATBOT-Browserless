@@ -1528,16 +1528,15 @@ async function getTimetable(semesterId = 'VL20252601') {
     // await getAttendance();
     // await getMarks();
     // await getAssignments();
-    // await getLeaveHistory();
+    await getLeaveHistory();
     // await getGrades();
     // await getPaymentHistory();
-    // await getTimetable();
     // await getProctorDetails();
     // await getGradeHistory();
     // await getCounsellingRank();
     // await getFacultyInfo();
     // await getTimetable();
-    await getLeaveStatus();
+    // await getLeaveStatus();
     console.log('\n✅ All done! Press Ctrl+C to exit');
     setInterval(() => {}, 30000);
   } else {
