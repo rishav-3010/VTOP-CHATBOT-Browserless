@@ -1124,6 +1124,92 @@ app.post('/api/faculty/select', async (req, res) => {
   }
 });
 
+// Papers Search Endpoint
+app.post('/api/papers/search', async (req, res) => {
+  console.log('\n📚 Papers Search Request Received:');
+  console.log('----------------------------------');
+  try {
+    const { courseCode, courseName, paperType } = req.body;
+    const { searchPapers } = require('./papers');
+    
+    console.log('📥 Search parameters:', {
+      courseCode: courseCode || '(not provided)',
+      courseName: courseName || '(not provided)',
+      paperType: paperType || 'all'
+    });
+    
+    // Check for GitHub token first
+    if (!process.env.GITHUB_TOKEN) {
+      console.warn('⚠️ WARNING: GITHUB_TOKEN not set');
+      console.warn('📢 API rate limits will be restricted to 60 requests/hour');
+      console.warn('💡 Add a token to .env file for 5000 requests/hour');
+    } else {
+      console.log('✅ Using GitHub token for authenticated requests');
+    }
+    
+    if (!courseCode && !courseName) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Please provide either a course code or course name',
+          type: 'VALIDATION_ERROR'
+        }
+      });
+    }
+
+    const results = await searchPapers({ courseCode, courseName, paperType });
+    
+    if (Array.isArray(results)) {
+      res.json({
+        success: true,
+        results: results.map(paper => ({
+          title: paper.title,
+          courseCode: paper.courseCode,
+          type: paper.examType,
+          year: paper.year,
+          term: paper.term,
+          subject: paper.subject,
+          url: paper.downloadUrl
+        }))
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        error: {
+          message: "Rate limit exceeded",
+          retryAfter: results.retryAfter,
+          type: "RATE_LIMIT"
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Papers search error:', error);
+    const isRateLimit = error.message?.toLowerCase().includes('rate limit') ||
+                       error.response?.status === 403;
+                       
+    if (isRateLimit) {
+      const resetTime = error.response?.headers?.['x-ratelimit-reset'] * 1000 || Date.now() + 3600000;
+      res.status(429).json({
+        success: false,
+        error: {
+          message: "GitHub API rate limit exceeded. Please try again later.",
+          retryAfter: new Date(resetTime).toISOString(),
+          type: "RATE_LIMIT"
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: {
+          message: "Failed to search papers",
+          details: error.message,
+          type: "INTERNAL_ERROR"
+        }
+      });
+    }
+  }
+});
+
 // Serve React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
