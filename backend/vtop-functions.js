@@ -1765,6 +1765,89 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
   }
 }
 
+async function getLeaveStatus(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'leaveStatus')) {
+      console.log(`[${sessionId}] Cache hit: leaveStatus`);
+      return session.cache.leaveStatus.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Leave Status...`);
+    const client = getClient(sessionId);
+    
+    // Step 1: Navigate to leave section
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Fetch leave status
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/4',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        status: '',
+        form: 'undefined',
+        control: 'status'
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const leaveStatus = [];
+    
+    $('#LeaveAppliedTable tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 8) {
+        const leave = {
+          slNo: $(cells[0]).text().trim(),
+          place: $(cells[2]).text().trim(),
+          reason: $(cells[3]).text().trim(),
+          type: $(cells[4]).text().trim(),
+          from: $(cells[5]).text().trim(),
+          to: $(cells[6]).text().trim(),
+          status: $(cells[7]).text().trim()
+        };
+        
+        if (leave.place) {
+          leaveStatus.push(leave);
+        }
+      }
+    });
+    
+    if (session) {
+      session.cache.leaveStatus = { data: leaveStatus, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: leaveStatus`);
+    }
+    
+    console.log(`[${sessionId}] Leave Status fetched for ${authData.authorizedID}`);
+    return leaveStatus;
+  } catch (error) {
+    console.error(`[${sessionId}] Leave Status fetch error:`, error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getCGPA,
   getAttendance,
@@ -1780,5 +1863,6 @@ module.exports = {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
-  getAcademicCalendar
+  getAcademicCalendar,
+  getLeaveStatus
 };
