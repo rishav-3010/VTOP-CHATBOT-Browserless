@@ -238,22 +238,26 @@ async function generateResponse(intent, data, originalMessage, session) {
     
     For each course, create:
     ### Course Name (Course Code)
-    | Assessment | Scored | Maximum | Weightage | Weightage% |
-    |------------|--------|---------|-----------| -----------|
-    | CAT-1      | X      | Y       | Z         | Z%         |
-    | Assignment | X      | Y       | Z         | Z%         |
+    | Assessment | Scored | Maximum | Weightage | WeightageMax |
+    |------------|--------|---------|-----------|------------  |
+    | CAT-1      | X      | Y       | Z         | ZM           |
+    | CAT-2      | X      | Y       | Z         | ZM           |
+    | Total(Bold)| X      | Y       | Z         | ZM           |
     
-    After each course table, add a line showing:
-    **Course Total: X/Y (Z%)**
+    After each course table, show:
+    - Lost Weightage: ZM - Z
     
-    Then add an overall Analysis section with:(if user asked for single subject then keep this below instructions for only for single not all)
-    - Overall performance summary across all subjects()
-    - Best performing courses (70%+)
-    - Courses needing attention (below 60%)
+    If passingInfo exists, add:
+    **🎯 Passing Status:**
+    - Type: Theory/Lab/STS
+    - Status: ✅ Safe / 🔴 Need X marks in FAT to pass
+    
+    Then add overall Analysis:
+    - Best performing courses (highest weightage %)
+    - Courses needing attention (with passing requirements if applicable)
     - Recommendations
     
-    IMP:If user is asking "Which subject has my lowest/highest marks? or any other particular thing to a single subject then show only for that subject not all" then show only that particular subject not all.
-    Use markdown formatting (bold headers, emphasis for important insights).
+    Use markdown formatting and emojis for visual appeal.
   `;
   break;
 
@@ -635,7 +639,7 @@ if (allData.counsellingRank && intents.includes('getcounsellingrank')) {
 // Faculty Info
 if (allData.facultyInfo && intents.includes('getfacultyinfo')) {
   dataContext += `\nFaculty Info: ${JSON.stringify(allData.facultyInfo, null, 2)}`;
-  promptSections.push(`For Faculty Info: If multiple results, list all. If single result, show details with name, designation, department, school, email, cabin, open hours.`);
+  promptSections.push(`For Faculty Info: If multiple results, list all. If single result, show details with name, designation, department, school, email, cabin, open hours in structured way.`);
 }
 
   // Build the final prompt

@@ -223,18 +223,80 @@ async function getMarks(authData, session, sessionId, semesterId = 'VL20252601')
       const nextRow = $(rows[i + 1]);
       const marksTable = nextRow.find('.customTable-level1 tbody');
       if (marksTable.length > 0) {
+        let totMaxMarks = 0;
+        let totWeightagePercent = 0;
+        let totScored = 0;
+        let totWeightageEqui = 0;
+
         marksTable.find('tr.tableContent-level1').each((j, markRow) => {
           const outputs = $(markRow).find('output');
-          course.marks.push({
+          const mark = {
             title: $(outputs[1]).text().trim(),
             scored: $(outputs[5]).text().trim(),
             max: $(outputs[2]).text().trim(),
             weightage: $(outputs[6]).text().trim(),
             percent: $(outputs[3]).text().trim()
-          });
+          };
+          course.marks.push(mark);
+
+          // Accumulate totals
+          totMaxMarks += parseFloat(mark.max) || 0;
+          totWeightagePercent += parseFloat(mark.percent) || 0;
+          totScored += parseFloat(mark.scored) || 0;
+          totWeightageEqui += parseFloat(mark.weightage) || 0;
         });
+
+        // Add Total row to marks array
+        const lostWeightage = (totWeightagePercent - totWeightageEqui).toFixed(2);
+        course.marks.push({
+          title: 'Total',
+          scored: totScored.toFixed(2),
+          max: totMaxMarks.toFixed(2),
+          weightage: totWeightageEqui.toFixed(2),
+          percent: totWeightagePercent.toFixed(2),
+          lostWeightage: lostWeightage,
+          isTotal: true  // Flag to identify total row
+        });
+
+        // Determine course type and passing info
+        const isTheory = course.courseTitle.toLowerCase().includes('theory');
+        const isLab = course.courseTitle.toLowerCase().includes('lab') || 
+                      course.courseTitle.toLowerCase().includes('online');
+        const isSTS = course.courseTitle.toLowerCase().includes('soft');
+
+        // Calculate passing requirements (only if weightage is 60)
+        if (totWeightagePercent == 60) {
+          let passMarks = null;
+          let passStatus = 'unknown';
+          
+          if (isTheory) {
+            if (totWeightageEqui >= 34) {
+              passMarks = 40;
+              passStatus = 'safe';
+            } else {
+              passMarks = ((34 - totWeightageEqui) * 2.5) + 40;
+              passStatus = 'danger';
+            }
+          } else if (isLab || isSTS) {
+            if (totWeightageEqui >= 50) {
+              passMarks = 'Already passed';
+              passStatus = 'safe';
+            } else {
+              passMarks = (50 - totWeightageEqui).toFixed(2);
+              passStatus = 'danger';
+            }
+          }
+          
+          course.passingInfo = {
+            required: passMarks,
+            status: passStatus,
+            type: isTheory ? 'Theory' : (isLab ? 'Lab' : (isSTS ? 'STS' : 'Unknown'))
+          };
+        }
+
         i++;
       }
+      
       courses.push(course);
     }
     
