@@ -1598,6 +1598,318 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
   }
 }
 
+async function getAcademicCalendar(authData, session, sessionId, semesterId = 'VL20252601') {
+  try {
+    if (isCacheValid(session, 'academicCalendar')) {
+      console.log(`[${sessionId}] Cache hit: academicCalendar`);
+      return session.cache.academicCalendar.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Academic Calendar...`);
+    const client = getClient(sessionId);
+    
+    // Step 1: Navigate to calendar preview page
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Get dates for semester
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/getDateForSemesterPreview',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        paramReturnId: 'getDateForSemesterPreview',
+        semSubId: semesterId,
+        authorizedID: authData.authorizedID
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 3: Get class group list
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/getListForSemester',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        paramReturnId: 'getListForSemester',
+        semSubId: semesterId,
+        classGroupId: 'ALL',
+        authorizedID: authData.authorizedID
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 4: Fetch calendar for each month - ALL uses 'ALL' classGroup for general semester events
+    const months = [
+      { name: 'JULY', date: '01-JUL-2025', classGroup: 'ALL' },
+      { name: 'AUGUST', date: '01-AUG-2025', classGroup: 'ALL' },
+      { name: 'SEPTEMBER', date: '01-SEP-2025', classGroup: 'ALL' },
+      { name: 'OCTOBER', date: '01-OCT-2025', classGroup: 'ALL' },
+      { name: 'NOVEMBER', date: '01-NOV-2025', classGroup: 'ALL' }
+    ];
+    
+    const calendar = {};
+    
+    for (const month of months) {
+      try {
+        console.log(`[${sessionId}] Fetching ${month.name}...`);
+        
+        const res = await client.post(
+          'https://vtop.vit.ac.in/vtop/processViewCalendar',
+          new URLSearchParams({
+            _csrf: authData.csrfToken,
+            calDate: month.date,
+            semSubId: semesterId,
+            classGroupId: month.classGroup,
+            authorizedID: authData.authorizedID
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }
+        );
+        
+        const $ = cheerio.load(res.data);
+        const events = [];
+        
+        // Parse calendar table
+        $('table.calendar-table tbody tr').each((i, row) => {
+          // Skip header row
+          if ($(row).find('th').length > 0) return;
+          
+          $(row).find('td').each((j, cell) => {
+            // Get the day number (first span in the cell)
+            const daySpan = $(cell).find('span').first();
+            const day = daySpan.text().trim();
+            
+            if (!day || isNaN(parseInt(day))) return;
+            
+            // Get all spans with color: green (instructional days)
+            const greenSpans = $(cell).find('span[style*="color: green"], span[style*="color:green"]');
+            
+            if (greenSpans.length > 0) {
+              greenSpans.each((k, eventSpan) => {
+                const eventText = $(eventSpan).text().trim();
+                
+                // Get the next span (usually has red/pink color for notes)
+                const nextSpan = $(eventSpan).next('span[style*="color"]');
+                const eventNote = nextSpan.text().trim();
+                
+                if (eventText) {
+                  events.push({
+                    day: parseInt(day),
+                    event: eventText,
+                    note: eventNote || ''
+                  });
+                }
+              });
+            }
+            
+            // Also check for other colored spans (holidays, non-instructional days, etc.)
+            const otherSpans = $(cell).find('span[style*="color"]').not('[style*="color: green"]').not('[style*="color:green"]').not('[style*="color: #000"]').not('[style*="color:#000"]');
+            
+            if (otherSpans.length > 0) {
+              otherSpans.each((k, eventSpan) => {
+                const eventText = $(eventSpan).text().trim();
+                
+                // Skip if it's the day number or already processed
+                if (eventText === day || !eventText) return;
+                
+                // Check if this is not already added
+                const alreadyExists = events.some(e => e.day === parseInt(day) && e.event === eventText);
+                
+                if (!alreadyExists && eventText.length > 3) {
+                  events.push({
+                    day: parseInt(day),
+                    event: eventText,
+                    note: ''
+                  });
+                }
+              });
+            }
+          });
+        });
+        
+        console.log(`[${sessionId}] ${month.name}: ${events.length} events found`);
+        
+        // Sort events by day
+        events.sort((a, b) => a.day - b.day);
+        calendar[month.name] = events;
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+      } catch (error) {
+        console.log(`[${sessionId}] Could not fetch ${month.name} calendar: ${error.message}`);
+        calendar[month.name] = [];
+      }
+    }
+    
+    // Calculate summary statistics
+    let totalInstructionalDays = 0;
+    let totalNonInstructionalDays = 0;
+    let totalHolidays = 0;
+    let totalExams = 0;
+    let totalEvents = 0;
+    
+    for (const events of Object.values(calendar)) {
+      totalEvents += events.length;
+      
+      events.forEach(event => {
+        const eventLower = event.event.toLowerCase();
+        
+        if (eventLower.includes('instructional')) {
+          totalInstructionalDays++;
+        } else if (eventLower.includes('holiday') || eventLower.includes('festival')) {
+          totalHolidays++;
+        } else if (eventLower.includes('exam') || eventLower.includes('cat') || eventLower.includes('fat')) {
+          totalExams++;
+        } else if (eventLower.includes('non-instructional') || eventLower.includes('no class') || 
+                   eventLower.includes('vacation') || eventLower.includes('break')) {
+          totalNonInstructionalDays++;
+        }
+      });
+    }
+    
+    const calendarData = {
+      calendar,
+      summary: {
+        totalEvents,
+        totalInstructionalDays,
+        totalNonInstructionalDays,
+        totalHolidays,
+        totalExams,
+        monthsCovered: months.length
+      }
+    };
+    
+    if (session) {
+      session.cache.academicCalendar = { data: calendarData, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: academicCalendar`);
+    }
+    
+    console.log(`[${sessionId}] Academic Calendar fetched for ${authData.authorizedID}`);
+    return calendarData;
+  } catch (error) {
+    console.error(`[${sessionId}] Academic Calendar fetch error:`, error.message);
+    throw error;
+  }
+}
+
+async function getLeaveStatus(authData, session, sessionId) {
+  try {
+    if (isCacheValid(session, 'leaveStatus')) {
+      console.log(`[${sessionId}] Cache hit: leaveStatus`);
+      return session.cache.leaveStatus.data;
+    }
+
+    console.log(`[${sessionId}] Fetching Leave Status...`);
+    const client = getClient(sessionId);
+    
+    // Step 1: Navigate to leave section
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID: authData.authorizedID,
+        _csrf: authData.csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Fetch leave status
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/hostels/student/leave/4',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        status: '',
+        form: 'undefined',
+        control: 'status'
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    const leaveStatus = [];
+    
+    $('#LeaveAppliedTable tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 8) {
+        const leave = {
+          slNo: $(cells[0]).text().trim(),
+          place: $(cells[2]).text().trim(),
+          reason: $(cells[3]).text().trim(),
+          type: $(cells[4]).text().trim(),
+          from: $(cells[5]).text().trim(),
+          to: $(cells[6]).text().trim(),
+          status: $(cells[7]).text().trim()
+        };
+        
+        if (leave.place) {
+          leaveStatus.push(leave);
+        }
+      }
+    });
+    
+    if (session) {
+      session.cache.leaveStatus = { data: leaveStatus, timestamp: Date.now() };
+      console.log(`[${sessionId}] Cache set: leaveStatus`);
+    }
+    
+    console.log(`[${sessionId}] Leave Status fetched for ${authData.authorizedID}`);
+    return leaveStatus;
+  } catch (error) {
+    console.error(`[${sessionId}] Leave Status fetch error:`, error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getCGPA,
   getAttendance,
@@ -1613,4 +1925,6 @@ module.exports = {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
+  getAcademicCalendar,
+  getLeaveStatus
 };

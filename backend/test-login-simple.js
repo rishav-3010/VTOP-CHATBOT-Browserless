@@ -1522,6 +1522,262 @@ async function getTimetable(semesterId = 'VL20252601') {
     console.error('❌ Timetable error:', error.message);
   }
 }
+
+async function getAcademicCalendar(semesterId = 'VL20252601') {
+  try {
+    console.log('\n📅 ACADEMIC CALENDAR:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    if (!csrfToken || !authorizedID) {
+      console.log('❌ Missing auth data');
+      return;
+    }
+    
+    // Step 1: Navigate to calendar preview page
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID,
+        _csrf: csrfToken
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 2: Get dates for semester
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/getDateForSemesterPreview',
+      new URLSearchParams({
+        _csrf: csrfToken,
+        paramReturnId: 'getDateForSemesterPreview',
+        semSubId: semesterId,
+        authorizedID
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 3: Get class group list
+    await client.post(
+      'https://vtop.vit.ac.in/vtop/getListForSemester',
+      new URLSearchParams({
+        _csrf: csrfToken,
+        paramReturnId: 'getListForSemester',
+        semSubId: semesterId,
+        classGroupId: 'ALL',
+        authorizedID
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 4: Fetch calendar for each month
+    const months = [
+      { name: 'JULY', date: '01-JUL-2025', classGroup: 'ALL' },
+      { name: 'AUGUST', date: '01-AUG-2025', classGroup: 'ALL' },
+      { name: 'SEPTEMBER', date: '01-SEP-2025', classGroup: 'ALL' },
+      { name: 'OCTOBER', date: '01-OCT-2025', classGroup: 'ALL' },
+      { name: 'NOVEMBER', date: '01-NOV-2025', classGroup: 'ALL' }
+    ];
+    
+    const calendar = {};
+    
+    for (const month of months) {
+      try {
+        console.log(`\n🔍 Fetching ${month.name}...`);
+        
+        const res = await client.post(
+          'https://vtop.vit.ac.in/vtop/processViewCalendar',
+          new URLSearchParams({
+            _csrf: csrfToken,
+            calDate: month.date,
+            semSubId: semesterId,
+            classGroupId: month.classGroup,
+            authorizedID
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }
+        );
+        
+        const $ = cheerio.load(res.data);
+        const events = [];
+        
+        console.log(`   Response length: ${res.data.length}`);
+        console.log(`   Tables found: ${$('table.calendar-table').length}`);
+        
+        // Parse calendar table
+        $('table.calendar-table tbody tr').each((i, row) => {
+          // Skip header row
+          if ($(row).find('th').length > 0) return;
+          
+          $(row).find('td').each((j, cell) => {
+            // Get the day number (first span in the cell)
+            const daySpan = $(cell).find('span').first();
+            const day = daySpan.text().trim();
+            
+            if (!day || isNaN(parseInt(day))) return;
+            
+            // Get all spans with color: green (instructional days)
+            const greenSpans = $(cell).find('span[style*="color: green"], span[style*="color:green"]');
+            
+            if (greenSpans.length > 0) {
+              greenSpans.each((k, eventSpan) => {
+                const eventText = $(eventSpan).text().trim();
+                
+                // Get the next span (usually has red/pink color for notes)
+                const nextSpan = $(eventSpan).next('span[style*="color"]');
+                const eventNote = nextSpan.text().trim();
+                
+                if (eventText) {
+                  events.push({
+                    day: parseInt(day),
+                    event: eventText,
+                    note: eventNote || ''
+                  });
+                }
+              });
+            }
+            
+            // Also check for other colored spans (holidays, non-instructional days, etc.)
+            const otherSpans = $(cell).find('span[style*="color"]').not('[style*="color: green"]').not('[style*="color:green"]').not('[style*="color: #000"]').not('[style*="color:#000"]');
+            
+            if (otherSpans.length > 0) {
+              otherSpans.each((k, eventSpan) => {
+                const eventText = $(eventSpan).text().trim();
+                
+                // Skip if it's the day number or already processed
+                if (eventText === day || !eventText) return;
+                
+                // Check if this is not already added
+                const alreadyExists = events.some(e => e.day === parseInt(day) && e.event === eventText);
+                
+                if (!alreadyExists && eventText.length > 3) {
+                  events.push({
+                    day: parseInt(day),
+                    event: eventText,
+                    note: ''
+                  });
+                }
+              });
+            }
+          });
+        });
+        
+        console.log(`   Events found: ${events.length}`);
+        calendar[month.name] = events;
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+      } catch (error) {
+        console.log(`⚠️  Could not fetch ${month.name} calendar: ${error.message}`);
+        calendar[month.name] = [];
+      }
+    }
+    
+    // Display calendar
+    console.log('\n');
+    
+    for (const [monthName, events] of Object.entries(calendar)) {
+      if (events.length > 0) {
+        console.log(`\n${'═'.repeat(100)}`);
+        console.log(`📅 ${monthName} 2025`);
+        console.log('═'.repeat(100));
+        
+        // Sort events by day
+        events.sort((a, b) => a.day - b.day);
+        
+        events.forEach(event => {
+          // Determine icon based on event type
+          const eventLower = event.event.toLowerCase();
+          const icon = event.event.includes('First Instructional') ? '🎯' :
+                       eventLower.includes('instructional') ? '📚' :
+                       eventLower.includes('holiday') ? '🏖️' :
+                       eventLower.includes('exam') || eventLower.includes('cat') || eventLower.includes('fat') ? '📝' :
+                       eventLower.includes('registration') ? '📋' :
+                       eventLower.includes('vacation') || eventLower.includes('break') ? '🌴' :
+                       eventLower.includes('festival') ? '🎉' :
+                       eventLower.includes('non-instructional') || eventLower.includes('no class') ? '🚫' : '📌';
+          
+          const formattedDay = monthName.substring(0, 3) + ' ' + String(event.day).padStart(2, '0');
+          const noteText = event.note ? ` (${event.note})` : '';
+          
+          console.log(`${icon} ${formattedDay}: ${event.event}${noteText}`);
+        });
+      } else {
+        console.log(`\n${'═'.repeat(100)}`);
+        console.log(`📅 ${monthName} 2025`);
+        console.log('═'.repeat(100));
+        console.log('⚠️  No events found for this month');
+      }
+    }
+    
+    console.log(`\n${'═'.repeat(100)}`);
+    
+    // Summary
+    let totalInstructionalDays = 0;
+    let totalNonInstructionalDays = 0;
+    let totalHolidays = 0;
+    let totalExams = 0;
+    let totalEvents = 0;
+    
+    for (const events of Object.values(calendar)) {
+      totalEvents += events.length;
+      
+      events.forEach(event => {
+        const eventLower = event.event.toLowerCase();
+        
+        if (eventLower.includes('instructional')) {
+          totalInstructionalDays++;
+        } else if (eventLower.includes('holiday') || eventLower.includes('festival')) {
+          totalHolidays++;
+        } else if (eventLower.includes('exam') || eventLower.includes('cat') || eventLower.includes('fat')) {
+          totalExams++;
+        } else if (eventLower.includes('non-instructional') || eventLower.includes('no class') || 
+                   eventLower.includes('vacation') || eventLower.includes('break')) {
+          totalNonInstructionalDays++;
+        }
+      });
+    }
+    
+    console.log(`\n📊 Calendar Summary:`);
+    console.log(`   Total Events: ${totalEvents}`);
+    console.log(`   📚 Instructional Days: ${totalInstructionalDays}`);
+    console.log(`   🚫 Non-Instructional Days: ${totalNonInstructionalDays}`);
+    console.log(`   🏖️  Holidays: ${totalHolidays}`);
+    console.log(`   📝 Exam Days: ${totalExams}`);
+    console.log(`   📅 Months Covered: ${months.length}`);
+    
+  } catch (error) {
+    console.error('❌ Academic Calendar fetch error:', error.message);
+  }
+}
 (async () => {
   if (await login()) {
     await getCGPA();
@@ -1537,6 +1793,7 @@ async function getTimetable(semesterId = 'VL20252601') {
     await getFacultyInfo();
     await getTimetable();
     await getLeaveStatus();
+    await getAcademicCalendar();
     console.log('\n✅ All done! Press Ctrl+C to exit');
     setInterval(() => {}, 30000);
   } else {
