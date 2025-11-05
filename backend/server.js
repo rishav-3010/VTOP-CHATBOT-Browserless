@@ -18,6 +18,8 @@ const {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
+  getAcademicCalendar,
+  getLeaveStatus
 } = require('./vtop-functions');
 
 const app = express();
@@ -52,7 +54,9 @@ function createSession() {
   paymentHistory: { data: null, timestamp: 0 },
   proctorDetails: { data: null, timestamp: 0 },
   gradeHistory: { data: null, timestamp: 0 },
-  counsellingRank: { data: null, timestamp: 0 }
+  counsellingRank: { data: null, timestamp: 0 },
+  academicCalendar: { data: null, timestamp: 0 },
+  leaveStatus: { data: null, timestamp: 0 }
   }
   };
   return sessionId;
@@ -89,9 +93,11 @@ async function recognizeIntent(message, session) {
 - getGrades: Semester grades, GPA, course grades
 - getPaymentHistory: Fee payments, receipts, transactions
 - getProctorDetails: Proctor information, faculty advisor
+- getLeaveStatus: Current leave status, pending/approved leaves
 - getGradeHistory: Complete academic history, grade distribution, curriculum progress
 - getCounsellingRank: Hostel counselling rank, slot, timings
 - getFacultyInfo: Faculty search, contact details, open hours
+- getAcademicCalendar: Academic calendar, holidays, exam dates, instructional days
 - general: Greetings, help, unclear requests,tell user about available functions
 
 IMPORTANT:
@@ -488,6 +494,60 @@ case 'getfacultyinfo':
     Use markdown formatting for readability and emojis for visual appeal.
   `;
   break;
+  case 'getacademiccalendar':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's the academic calendar data: ${JSON.stringify(data, null, 2)}
+    
+    Format the calendar month-wise with:
+    
+    For each month (July to November):
+    ### 📅 MONTH 2025
+    Show events with appropriate emojis:
+    - 🎯 for First Instructional Day
+    - 📚 for Instructional Days
+    - 🏖️ for Holidays
+    - 📝 for Exams (CAT/FAT)
+    - 📋 for Registration
+    - 🌴 for Vacation/Break
+    - 🎉 for Festivals
+    - 🚫 for Non-instructional/No class days
+    - 📌 for other events
+    
+    Format: Date: Event description
+    
+    After all months, add a Summary section with:
+    - 📊 Total Events
+    - 📚 Instructional Days
+    - 🚫 Non-Instructional Days
+    - 🏖️ Holidays
+    - 📝 Exam Days
+    - 📅 Months Covered
+    
+    Use markdown formatting for clarity and visual appeal.
+  `;
+  break;
+  case 'getleavestatus':
+  prompt = `
+    The user asked: "${originalMessage}"
+    Here's their current leave status: ${JSON.stringify(data, null, 2)}
+    
+    Format as a markdown table with columns:
+    | Place | Reason | Type | From → To | Status |
+    
+    Use emojis for status:
+    - ✅ for APPROVED
+    - ❌ for REJECTED/CANCELLED
+    - ⏳ for PENDING
+    
+    After the table, add a summary with:
+    - Active/pending leaves
+    - Recently approved leaves
+    - Any action needed
+    
+    Use markdown formatting for clarity.
+  `;
+  break;
     default:
   // If this is the first message (conversation just started), send context
   if (session.conversationHistory.length <= 2) {
@@ -507,6 +567,7 @@ case 'getfacultyinfo':
       - 👨‍🏫 Get proctor details and contact information
       - 📚 View complete academic grade history
       - 🎯 Check hostel counselling rank and slot
+      - 📋 Check current leave status and pending applications
       - 🔍 Search for faculty information and contact details
       - 🔐 View login history and session records
       
@@ -606,6 +667,12 @@ if (allData.leaveHistory && intents.includes('getleavehistory')) {
   promptSections.push(`For Leave History: Create a table with columns: | Place | Reason | Type | From → To | Status |. Use ✅ for approved, ❌ for cancelled, ⏳ for pending. Add summary with total leaves and approval rate.`);
 }
 
+// Leave Status
+if (allData.leaveStatus && intents.includes('getleavestatus')) {
+  dataContext += `\nLeave Status: ${JSON.stringify(allData.leaveStatus, null, 2)}`;
+  promptSections.push(`For Leave Status: Create table with current leave applications showing place, reason, type, dates, and status with appropriate emojis.`);
+}
+
 // Grades
 if (allData.grades && intents.includes('getgrades')) {
   dataContext += `\nGrades Data: ${JSON.stringify(allData.grades, null, 2)}`;
@@ -640,6 +707,12 @@ if (allData.counsellingRank && intents.includes('getcounsellingrank')) {
 if (allData.facultyInfo && intents.includes('getfacultyinfo')) {
   dataContext += `\nFaculty Info: ${JSON.stringify(allData.facultyInfo, null, 2)}`;
   promptSections.push(`For Faculty Info: If multiple results, list all. If single result, show details with name, designation, department, school, email, cabin, open hours in structured way.`);
+}
+
+// Academic Calendar
+if (allData.academicCalendar && intents.includes('getacademiccalendar')) {
+  dataContext += `\nAcademic Calendar: ${JSON.stringify(allData.academicCalendar, null, 2)}`;
+  promptSections.push(`For Academic Calendar: Show month-wise calendar (July-November) with events using appropriate emojis. Include summary with total events, instructional days, holidays, etc.`);
 }
 
   // Build the final prompt
@@ -806,6 +879,9 @@ app.post('/api/chat', async (req, res) => {
             case 'getleavehistory':
   allData.leaveHistory = await getLeaveHistory(authData, session, sessionId);
   break;
+  case 'getleavestatus':
+  allData.leaveStatus = await getLeaveStatus(authData, session, sessionId);
+  break;
 case 'getgrades':
   allData.grades = await getGrades(authData, session, sessionId);
   break;
@@ -824,6 +900,9 @@ case 'getcounsellingrank':
 case 'getfacultyinfo':
   // Faculty info requires facultyName parameter - handle separately
   console.log(`[${sessionId}] Faculty info requires name parameter`);
+  break;
+case 'getacademiccalendar':
+  allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
   break;
           }
         } catch (error) {
@@ -861,6 +940,16 @@ case 'getfacultyinfo':
             response = "Sorry, I couldn't fetch your attendance data right now. Please try again.";
           }
           break;
+        
+        case 'getleavestatus':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.leaveStatus = await getLeaveStatus(authData, session, sessionId);
+    response = await generateResponse(intent, allData.leaveStatus, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch your leave status right now. Please try again.";
+  }
+  break;
 
         case 'getassignments':
           try {
@@ -1038,6 +1127,16 @@ case 'getfacultyinfo':
   } catch (error) {
     console.error(`[${sessionId}] Faculty info error:`, error);
     response = "Sorry, I couldn't fetch faculty information right now. Please make sure you've provided the faculty name correctly and try again.";
+  }
+  break;
+
+case 'getacademiccalendar':
+  try {
+    const authData = await getAuthData(sessionId);
+    allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
+    response = await generateResponse(intent, allData.academicCalendar, message, session);
+  } catch (error) {
+    response = "Sorry, I couldn't fetch the academic calendar right now. Please try again.";
   }
   break;
 
