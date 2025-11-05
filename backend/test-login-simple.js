@@ -1284,9 +1284,9 @@ async function getFacultyInfo() {
     });
     
     // Display faculty information
-    console.log('═'.repeat(80));
+    console.log('='.repeat(80));
     console.log(`👤 ${details['Name of the Faculty '] || selectedFaculty.name}`);
-    console.log('═'.repeat(80));
+    console.log('='.repeat(80));
     console.log(`🏢 Designation: ${details['Designation'] || selectedFaculty.designation}`);
     console.log(`🏛️  Department: ${details['Name of Department'] || 'N/A'}`);
     console.log(`🎓 School: ${details['School / Centre Name'] || selectedFaculty.school}`);
@@ -1522,21 +1522,101 @@ async function getTimetable(semesterId = 'VL20252601') {
     console.error('❌ Timetable error:', error.message);
   }
 }
+async function getHOD_DEANinfo() {
+  try {
+    console.log('\n👥 HOD & DEAN INFORMATION:');
+    const { csrfToken, authorizedID } = await getAuthData();
+    
+    if (!csrfToken || !authorizedID) {
+      console.log('❌ Missing auth data');
+      return;
+    }
+    
+    // Fetch HOD & DEAN information
+    const res = await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/viewHodDeanDetails',
+      new URLSearchParams({
+        verifyMenu: 'true',
+        authorizedID,
+        _csrf: csrfToken,
+        nocache: new Date().getTime()
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(res.data);
+    
+    console.log('═'.repeat(80));
+    
+    // Parse and display HOD information
+    console.log('🎓 HEAD OF DEPARTMENT:');
+    console.log('─'.repeat(80));
+    const hodTable = $('table.table').first();
+    if (hodTable.length) {
+      hodTable.find('tbody tr').each((i, row) => {
+        const cells = $(row).find('td');
+        if (cells.length >= 2) {
+          const label = $(cells[0]).text().trim();
+          const value = $(cells[1]).text().trim();
+          if (label && value && !label.includes('Image')) {
+            console.log(`${label}: ${value}`);
+          }
+        }
+      });
+    } else {
+      console.log('⚠️ HOD information not available');
+    }
+    
+    console.log('\n═'.repeat(80));
+    
+    // Parse and display DEAN information
+    console.log('🎓 DEAN:');
+    console.log('─'.repeat(80));
+    const deanTable = $('table.table').last();
+    if (deanTable.length && !deanTable.is(hodTable)) {
+      deanTable.find('tbody tr').each((i, row) => {
+        const cells = $(row).find('td');
+        if (cells.length >= 2) {
+          const label = $(cells[0]).text().trim();
+          const value = $(cells[1]).text().trim();
+          if (label && value && !label.includes('Image')) {
+            console.log(`${label}: ${value}`);
+          }
+        }
+      });
+    } else {
+      console.log('⚠️ DEAN information not available');
+    }
+    
+    console.log('═'.repeat(80));
+    
+  } catch (error) {
+    console.error('❌ HOD & DEAN info fetch error:', error.message);
+  }
+}
+
 (async () => {
   if (await login()) {
-    await getCGPA();
-    await getAttendance();
-    await getMarks();
-    await getAssignments();
-    await getLeaveHistory();
-    await getGrades();
-    await getPaymentHistory();
-    await getProctorDetails();
-    await getGradeHistory();
-    await getCounsellingRank();
-    await getFacultyInfo();
-    await getTimetable();
-    await getLeaveStatus();
+    // await getCGPA();
+    // await getAttendance();
+    // await getMarks();
+    // await getAssignments();
+    // await getLeaveHistory();
+    // await getGrades();
+    // await getPaymentHistory();
+    // await getProctorDetails();
+    // await getGradeHistory();
+    // await getCounsellingRank();
+    // await getFacultyInfo();
+    // await getTimetable();
+    // await getLeaveStatus();
+    await getHOD_DEANinfo();
     console.log('\n✅ All done! Press Ctrl+C to exit');
     setInterval(() => {}, 30000);
   } else {
