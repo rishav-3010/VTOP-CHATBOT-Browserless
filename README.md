@@ -9,11 +9,88 @@ An intelligent, AI-powered chatbot interface for VIT students to interact with V
 
 ## ✨ Features
 
-### 🤖 **Intelligent Conversational Interface**
-- **Natural Language Understanding** - Powered by Gemini 2.5 Flash for human-like interactions
-- **Multi-Intent Recognition** - Handle multiple queries simultaneously (e.g., "Show attendance and marks")
-- **Context-Aware Responses** - Dynamic suggestions based on conversation history
-- **Smart Data Presentation** - Automatically formats complex data into readable markdown tables
+- 🤖 **AI-Powered Chat Interface** - Natural language queries using Gemini 2.5 Flash
+- 📊 **Real-time VTOP Data** - Fetches live academic information
+- 🔐 **Secure Authentication** - Session-based auth with CAPTCHA solving
+- 💬 **Multi-Intent Recognition** - Handle multiple queries simultaneously
+- ⚡ **Smart Caching** - 30-minute cache for faster responses
+- 🎯 **Context-Aware** - Dynamic suggestions based on conversation
+- 🔒 **Privacy First** - No credential storage, session-only data
+
+### What You Can Ask
+
+- **CGPA & Grades**: "What's my CGPA?", "Show semester report", "Show complete grade history"
+- **Attendance**: "Show my attendance", "Am I at risk of debarment?", "How many classes can I skip?"
+- **Marks**: "Get my marks", "Which subject am I worst at?", "What marks do I need in FAT to pass?"
+- **Assignments**: "Show assignments", "What deadlines are urgent?", "Show overdue assignments"
+- **Exam Schedule**: "Show exam schedule", "When is my FAT?", "Show CAT1 schedule"
+- **Timetable**: "Show my timetable", "What classes do I have on Monday?", "Show weekly schedule"
+- **Login History**: "Show my login history", "Recent login sessions"
+- **Leave Management**: "Show leave history", "What's my current leave status?"
+- **Payment History**: "Show payment history", "Total fees paid"
+- **Proctor Details**: "Who is my proctor?", "Show proctor contact details"
+- **Faculty Search**: "Find faculty named Yokesh", "Search for professor Kumar"
+- **Counselling Rank**: "What's my hostel counselling rank?", "Show counselling slot"
+- **Academic Calendar**: "Show academic calendar", "When are the holidays?"
+- **Previous Year Papers**: Browse and download past exam papers by course and type
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+```bash
+# Required
+- Node.js v18 or higher
+- npm or yarn
+- Google Gemini API key
+
+# Optional (for demo mode)
+- VTOP credentials
+- GitHub token (for papers feature)
+```
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/vtop-chatbot.git
+cd vtop-chatbot
+```
+
+2. **Install dependencies**
+```bash
+cd backend
+npm install
+```
+
+3. **Configure environment variables**
+
+Create a `.env` file in the `backend` directory:
+
+```env
+# Server Configuration
+PORT=3000
+
+# Google Gemini API (Required)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Demo Mode Credentials (Optional)
+VTOP_USERNAME=your_vtop_username
+VTOP_PASSWORD=your_vtop_password
+
+# GitHub Token for Papers Feature (Optional but recommended)
+GITHUB_TOKEN=your_github_personal_access_token
+```
+
+4. **Start the server**
+```bash
+npm start
+```
+
+5. **Open your browser**
+```
+http://localhost:3000
+```
 
 ## 💡 What You Can Ask
 
@@ -83,115 +160,6 @@ An intelligent, AI-powered chatbot interface for VIT students to interact with V
 ✅ "Show attendance and marks together"
 ✅ "Give me a complete academic overview"
 ```
-
-
-### 📊 **Comprehensive Academic Data Access**
-- **📈 Performance Tracking**
-  - Current CGPA and semester-wise GPA
-  - Complete grade history with distribution analysis
-  - Marks breakdown for all assessments (CAT1, CAT2, FAT)
-  - Subject-wise performance with passing status predictions
-  
-- **📅 Attendance Management**
-  - Real-time attendance percentage
-  - Debarment risk alerts (color-coded: 🔴 Danger, ⚠️ Caution, ✅ Safe)
-  - Classes needed to reach 75% threshold
-  - Skip-class calculator for safe attendance levels
-  
-- **📋 Assignment Tracking**
-  - Digital assignment deadlines
-  - Automatic deadline status (overdue, due today, days remaining)
-  - Course-wise organization
-  - Urgent task highlighting
-
-### 🗓️ **Schedule & Calendar**
-- **Exam Schedules** - FAT, CAT1, CAT2 with venue and seat details
-- **Weekly Timetable** - Day-wise class schedule with venues and faculty
-- **Academic Calendar** - Semester events, holidays, instructional days
-- **Smart Time Management** - Visual slot-based timetable organization
-
-### 👨‍🏫 **Faculty & Administrative**
-- **Faculty Search** - Find faculty by name with contact details and open hours
-- **Proctor Information** - View assigned proctor details
-- **Payment History** - Fee receipts and transaction records
-- **Login History** - Session tracking and IP address logs
-
-### 🏠 **Hostel Management**
-- **Leave History** - Past leave applications with approval status
-- **Current Leave Status** - Pending and active leave requests
-- **Counselling Rank** - Hostel counselling slot and timing information
-
-### 📚 **Previous Year Papers** *(NEW!)*
-- Browse and download past exam papers
-- Search by course name or code
-- Filter by paper type (CAT1, CAT2, FAT)
-- Integrated with VIT PYQPs repository
-
-### 🔥 **Advanced Features**
-- **Parallel Data Fetching** - Lightning-fast response for multi-intent queries
-- **Smart Caching** - 30-minute cache for instant repeated queries
-- **Session Isolation** - Each user gets independent browser session
-- **Auto CAPTCHA Solving** - ViBoOT algorithm with 95%+ accuracy
-- **Intelligent Retry Mechanism** - Auto-recovery from temporary failures
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-```bash
-# Required
-- Node.js v18 or higher
-- npm or yarn
-- Google Gemini API key
-
-# Optional (for demo mode)
-- VTOP credentials
-- GitHub token (for papers feature)
-```
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/vtop-chatbot.git
-cd vtop-chatbot
-```
-
-2. **Install dependencies**
-```bash
-cd backend
-npm install
-```
-
-3. **Configure environment variables**
-
-Create a `.env` file in the `backend` directory:
-
-```env
-# Server Configuration
-PORT=3000
-
-# Google Gemini API (Required)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Demo Mode Credentials (Optional)
-VTOP_USERNAME=your_vtop_username
-VTOP_PASSWORD=your_vtop_password
-
-# GitHub Token for Papers Feature (Optional but recommended)
-GITHUB_TOKEN=your_github_personal_access_token
-```
-
-4. **Start the server**
-```bash
-npm start
-```
-
-5. **Open your browser**
-```
-http://localhost:3000
-```
-
 
 ## 🏗️ Project Architecture
 
