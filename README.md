@@ -15,7 +15,7 @@ An intelligent, AI-powered chatbot interface for VIT students to interact with V
 - **Context-Aware Responses** - Dynamic suggestions based on conversation history
 - **Smart Data Presentation** - Automatically formats complex data into readable markdown tables
 
-### 📊 **Comprehensive Academic Data Access**
+### 📊 **What You Can Ask**
 - **📈 Performance Tracking**
   - Current CGPA and semester-wise GPA
   - Complete grade history with distribution analysis
