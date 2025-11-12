@@ -15,7 +15,77 @@ An intelligent, AI-powered chatbot interface for VIT students to interact with V
 - **Context-Aware Responses** - Dynamic suggestions based on conversation history
 - **Smart Data Presentation** - Automatically formats complex data into readable markdown tables
 
-### 📊 **What You Can Ask**
+## 💡 What You Can Ask
+
+### Academic Performance
+```
+✅ "What's my CGPA?"
+✅ "Show my complete academic history"
+✅ "Which subject am I performing worst in?"
+✅ "Do I have any courses with failing marks?"
+✅ "Show me my grade distribution"
+```
+
+### Attendance Queries
+```
+✅ "Show my attendance"
+✅ "Am I at risk of debarment?"
+✅ "How many classes can I skip in IoT?"
+✅ "Which course has the lowest attendance?"
+✅ "Show courses with attendance below 75%"
+```
+
+### Marks & Assessments
+```
+✅ "Get my marks for all subjects"
+✅ "What marks do I need in FAT to pass?"
+✅ "Show CAT1 and CAT2 marks comparison"
+✅ "Which assessment am I weakest in?"
+```
+
+### Assignments & Deadlines
+```
+✅ "Show my pending assignments"
+✅ "What deadlines are urgent?"
+✅ "Which assignments are overdue?"
+✅ "Show assignments due this week"
+```
+
+### Schedules & Timetable
+```
+✅ "Show my exam schedule"
+✅ "When is my FAT exam?"
+✅ "Show Monday's timetable"
+✅ "Show my weekly class schedule"
+✅ "Show the academic calendar"
+```
+
+### Faculty & Administrative
+```
+✅ "Find faculty named Yokesh"
+✅ "Show my proctor details"
+✅ "Who is my faculty advisor?"
+✅ "Show payment history"
+✅ "View login history"
+```
+
+### Hostel & Leave
+```
+✅ "Show my leave history"
+✅ "What's my current leave status?"
+✅ "Show my hostel counselling rank"
+```
+
+### Multi-Intent Queries *(Smart Feature!)*
+```
+✅ "Show my complete semester report"
+   → Fetches CGPA, attendance, marks, and assignments in parallel!
+✅ "Show attendance and marks together"
+✅ "Give me a complete academic overview"
+```
+
+
+### 📊 **Comprehensive Academic Data Access**
 - **📈 Performance Tracking**
   - Current CGPA and semester-wise GPA
   - Complete grade history with distribution analysis
@@ -122,74 +192,6 @@ npm start
 http://localhost:3000
 ```
 
-## 💡 What You Can Ask
-
-### Academic Performance
-```
-✅ "What's my CGPA?"
-✅ "Show my complete academic history"
-✅ "Which subject am I performing worst in?"
-✅ "Do I have any courses with failing marks?"
-✅ "Show me my grade distribution"
-```
-
-### Attendance Queries
-```
-✅ "Show my attendance"
-✅ "Am I at risk of debarment?"
-✅ "How many classes can I skip in IoT?"
-✅ "Which course has the lowest attendance?"
-✅ "Show courses with attendance below 75%"
-```
-
-### Marks & Assessments
-```
-✅ "Get my marks for all subjects"
-✅ "What marks do I need in FAT to pass?"
-✅ "Show CAT1 and CAT2 marks comparison"
-✅ "Which assessment am I weakest in?"
-```
-
-### Assignments & Deadlines
-```
-✅ "Show my pending assignments"
-✅ "What deadlines are urgent?"
-✅ "Which assignments are overdue?"
-✅ "Show assignments due this week"
-```
-
-### Schedules & Timetable
-```
-✅ "Show my exam schedule"
-✅ "When is my FAT exam?"
-✅ "Show Monday's timetable"
-✅ "Show my weekly class schedule"
-✅ "Show the academic calendar"
-```
-
-### Faculty & Administrative
-```
-✅ "Find faculty named Yokesh"
-✅ "Show my proctor details"
-✅ "Who is my faculty advisor?"
-✅ "Show payment history"
-✅ "View login history"
-```
-
-### Hostel & Leave
-```
-✅ "Show my leave history"
-✅ "What's my current leave status?"
-✅ "Show my hostel counselling rank"
-```
-
-### Multi-Intent Queries *(Smart Feature!)*
-```
-✅ "Show my complete semester report"
-   → Fetches CGPA, attendance, marks, and assignments in parallel!
-✅ "Show attendance and marks together"
-✅ "Give me a complete academic overview"
-```
 
 ## 🏗️ Project Architecture
 
