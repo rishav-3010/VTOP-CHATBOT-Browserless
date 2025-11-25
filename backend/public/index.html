@@ -331,7 +331,7 @@
 
         const LoginForm = ({ onLogin, isLoading }) => {
             const [authMode, setAuthMode] = useState(null); // 'demo' or 'custom' or 'papers'
-            const [credentials, setCredentials] = useState({ username: '', password: '' });
+            const [credentials, setCredentials] = useState({ username: '', password: '', campus: 'vellore' });
             const [showPassword, setShowPassword] = useState(false);
 
             const handleLogin = (e) => {
@@ -342,7 +342,8 @@
                     onLogin({ 
                         useDemo: false, 
                         username: credentials.username, 
-                        password: credentials.password 
+                        password: credentials.password,
+                        campus: credentials.campus
                     });
                 }
             };
@@ -458,6 +459,35 @@ React.createElement('button', {
                         
                         React.createElement('form', { onSubmit: handleLogin, className: "space-y-4", key: 'form' }, [
                             authMode === 'custom' ? [
+                                React.createElement('div', { key: 'campus' }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-2" }, "Campus"),
+                                    React.createElement('div', { className: "flex space-x-4" }, [
+                                        React.createElement('label', { className: "flex items-center space-x-2 cursor-pointer" }, [
+                                            React.createElement('input', {
+                                                type: 'radio',
+                                                name: 'campus',
+                                                value: 'vellore',
+                                                checked: credentials.campus === 'vellore',
+                                                onChange: (e) => setCredentials(prev => ({ ...prev, campus: e.target.value })),
+                                                className: "w-4 h-4 text-blue-600 focus:ring-blue-500",
+                                                disabled: isLoading
+                                            }),
+                                            React.createElement('span', { className: "text-sm text-gray-700" }, "Vellore")
+                                        ]),
+                                        React.createElement('label', { className: "flex items-center space-x-2 cursor-pointer" }, [
+                                            React.createElement('input', {
+                                                type: 'radio',
+                                                name: 'campus',
+                                                value: 'chennai',
+                                                checked: credentials.campus === 'chennai',
+                                                onChange: (e) => setCredentials(prev => ({ ...prev, campus: e.target.value })),
+                                                className: "w-4 h-4 text-blue-600 focus:ring-blue-500",
+                                                disabled: isLoading
+                                            }),
+                                            React.createElement('span', { className: "text-sm text-gray-700" }, "Chennai")
+                                        ])
+                                    ])
+                                ]),
                                 React.createElement('div', { key: 'username' }, [
                                     React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-2" }, "Username/Registration Number"),
                                     React.createElement('input', {

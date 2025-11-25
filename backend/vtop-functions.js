@@ -1,4 +1,4 @@
-const { getClient, getAuthData } = require('./vtop-auth');
+const { getClient, getAuthData, getBaseUrl, getCampus } = require('./vtop-auth');
 const cheerio = require('cheerio');
 
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -17,9 +17,10 @@ async function getCGPA(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching CGPA...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/get/dashboard/current/cgpa/credits',
+      `${baseUrl}/vtop/get/dashboard/current/cgpa/credits`,
       new URLSearchParams({
         authorizedID: authData.authorizedID,
         _csrf: authData.csrfToken,
@@ -28,7 +29,7 @@ async function getCGPA(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -67,9 +68,10 @@ async function getAttendance(authData, session, sessionId, semesterId = 'VL20252
 
     console.log(`[${sessionId}] Fetching Attendance...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/processViewStudentAttendance',
+      `${baseUrl}/vtop/processViewStudentAttendance`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         semesterSubId: semesterId,
@@ -79,7 +81,7 @@ async function getAttendance(authData, session, sessionId, semesterId = 'VL20252
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -184,9 +186,10 @@ async function getMarks(authData, session, sessionId, semesterId = 'VL20252601')
 
     console.log(`[${sessionId}] Fetching Marks...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView',
+      `${baseUrl}/vtop/examinations/doStudentMarkView`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         semesterSubId: semesterId,
@@ -196,7 +199,7 @@ async function getMarks(authData, session, sessionId, semesterId = 'VL20252601')
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -322,9 +325,10 @@ async function getAssignments(authData, session, sessionId, semesterId = 'VL2025
 
     console.log(`[${sessionId}] Fetching Assignments...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const subRes = await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment',
+      `${baseUrl}/vtop/examinations/doDigitalAssignment`,
       new URLSearchParams({
         authorizedID: authData.authorizedID,
         x: new Date().toUTCString(),
@@ -334,7 +338,7 @@ async function getAssignments(authData, session, sessionId, semesterId = 'VL2025
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -361,7 +365,7 @@ async function getAssignments(authData, session, sessionId, semesterId = 'VL2025
     for (const subject of subjects) {
       try {
         const aRes = await client.post(
-          'https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment',
+          `${baseUrl}/vtop/examinations/processDigitalAssignment`,
           new URLSearchParams({
             _csrf: authData.csrfToken,
             classId: subject.classNbr,
@@ -371,7 +375,7 @@ async function getAssignments(authData, session, sessionId, semesterId = 'VL2025
           {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
-              'Referer': 'https://vtop.vit.ac.in/vtop/content',
+              'Referer': `${baseUrl}/vtop/content`,
               'X-Requested-With': 'XMLHttpRequest'
             }
           }
@@ -468,9 +472,10 @@ async function getLoginHistory(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Login History...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/show/login/history',
+      `${baseUrl}/vtop/show/login/history`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -479,7 +484,7 @@ async function getLoginHistory(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -525,9 +530,10 @@ async function getExamSchedule(authData, session, sessionId, semesterId = 'VL202
 
     console.log(`[${sessionId}] Fetching Exam Schedule...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/StudExamSchedule',
+      `${baseUrl}/vtop/examinations/StudExamSchedule`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -537,14 +543,14 @@ async function getExamSchedule(authData, session, sessionId, semesterId = 'VL202
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
     );
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent',
+      `${baseUrl}/vtop/examinations/doSearchExamScheduleForStudent`,
       new URLSearchParams({
         authorizedID: authData.authorizedID,
         _csrf: authData.csrfToken,
@@ -553,7 +559,7 @@ async function getExamSchedule(authData, session, sessionId, semesterId = 'VL202
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/examinations/StudExamSchedule',
+          'Referer': `${baseUrl}/vtop/examinations/StudExamSchedule`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -628,9 +634,10 @@ async function getTimetable(authData, session, sessionId, semesterId = 'VL202526
 
     console.log(`[${sessionId}] Fetching Timetable...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/processViewTimeTable',
+      `${baseUrl}/vtop/processViewTimeTable`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         semesterSubId: semesterId,
@@ -640,7 +647,7 @@ async function getTimetable(authData, session, sessionId, semesterId = 'VL202526
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -903,10 +910,11 @@ async function getLeaveHistory(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Leave History...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     // Step 1: Navigate to leave request section
     await client.post(
-      'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      `${baseUrl}/vtop/hostels/student/leave/1`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -915,7 +923,7 @@ async function getLeaveHistory(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -925,7 +933,7 @@ async function getLeaveHistory(authData, session, sessionId) {
     
     // Step 2: Fetch leave history
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/hostels/student/leave/6',
+      `${baseUrl}/vtop/hostels/student/leave/6`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -936,7 +944,7 @@ async function getLeaveHistory(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+          'Referer': `${baseUrl}/vtop/hostels/student/leave/1`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -986,10 +994,11 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20242505'
 
     console.log(`[${sessionId}] Fetching Grades...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     // Step 1: Navigate to grades page
     await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeView',
+      `${baseUrl}/vtop/examinations/examGradeView/StudentGradeView`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -998,7 +1007,7 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20242505'
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1008,7 +1017,7 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20242505'
     
     // Step 2: Fetch grades for semester
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView',
+      `${baseUrl}/vtop/examinations/examGradeView/doStudentGradeView`,
       new URLSearchParams({
         authorizedID: authData.authorizedID,
         _csrf: authData.csrfToken,
@@ -1017,7 +1026,7 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20242505'
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeView',
+          'Referer': `${baseUrl}/vtop/examinations/examGradeView/StudentGradeView`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1097,9 +1106,10 @@ async function getPaymentHistory(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Payment History...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/finance/getStudentReceipts',
+      `${baseUrl}/vtop/finance/getStudentReceipts`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1108,7 +1118,7 @@ async function getPaymentHistory(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1164,9 +1174,10 @@ async function getProctorDetails(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Proctor Details...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/proctor/viewProctorDetails',
+      `${baseUrl}/vtop/proctor/viewProctorDetails`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1175,7 +1186,7 @@ async function getProctorDetails(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1219,9 +1230,10 @@ async function getGradeHistory(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Grade History...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory',
+      `${baseUrl}/vtop/examinations/examGradeView/StudentGradeHistory`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1230,7 +1242,7 @@ async function getGradeHistory(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1336,9 +1348,10 @@ async function getCounsellingRank(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Counselling Rank...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/hostels/counsellingSlotTimings',
+      `${baseUrl}/vtop/hostels/counsellingSlotTimings`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1347,7 +1360,7 @@ async function getCounsellingRank(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1382,6 +1395,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
   try {
     console.log(`[${sessionId}] Fetching Faculty Info for: ${facultyName}`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     if (!facultyName || facultyName.length < 3) {
       console.log(`[${sessionId}] Faculty name too short: ${facultyName}`);
@@ -1390,7 +1404,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
     
     // Step 1: Navigate to faculty search page
     await client.post(
-      'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+      `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1399,7 +1413,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1410,7 +1424,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
     // Step 2: Search for faculty
     console.log(`[${sessionId}] Searching with query: ${facultyName.toLowerCase()}`);
     const searchRes = await client.post(
-      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearchForStudent',
+      `${baseUrl}/vtop/hrms/EmployeeSearchForStudent`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -1420,7 +1434,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1473,7 +1487,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
     
     // Step 3: Get faculty details
     const detailsRes = await client.post(
-      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      `${baseUrl}/vtop/hrms/EmployeeSearch1ForStudent`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -1483,7 +1497,7 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1539,9 +1553,10 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
   try {
     console.log(`[${sessionId}] Fetching Faculty Details for empId: ${empId}`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const detailsRes = await client.post(
-      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      `${baseUrl}/vtop/hrms/EmployeeSearch1ForStudent`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -1551,7 +1566,7 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1607,10 +1622,11 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
 
     console.log(`[${sessionId}] Fetching Academic Calendar...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     // Step 1: Navigate to calendar preview page
     await client.post(
-      'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+      `${baseUrl}/vtop/academics/common/CalendarPreview`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1619,7 +1635,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1629,7 +1645,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
     
     // Step 2: Get dates for semester
     await client.post(
-      'https://vtop.vit.ac.in/vtop/getDateForSemesterPreview',
+      `${baseUrl}/vtop/getDateForSemesterPreview`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         paramReturnId: 'getDateForSemesterPreview',
@@ -1639,7 +1655,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1649,7 +1665,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
     
     // Step 3: Get class group list
     await client.post(
-      'https://vtop.vit.ac.in/vtop/getListForSemester',
+      `${baseUrl}/vtop/getListForSemester`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         paramReturnId: 'getListForSemester',
@@ -1660,7 +1676,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+          'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1684,7 +1700,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
         console.log(`[${sessionId}] Fetching ${month.name}...`);
         
         const res = await client.post(
-          'https://vtop.vit.ac.in/vtop/processViewCalendar',
+          `${baseUrl}/vtop/processViewCalendar`,
           new URLSearchParams({
             _csrf: authData.csrfToken,
             calDate: month.date,
@@ -1695,7 +1711,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
           {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
-              'Referer': 'https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview',
+              'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`,
               'X-Requested-With': 'XMLHttpRequest'
             }
           }
@@ -1836,10 +1852,11 @@ async function getLeaveStatus(authData, session, sessionId) {
 
     console.log(`[${sessionId}] Fetching Leave Status...`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     // Step 1: Navigate to leave section
     await client.post(
-      'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+      `${baseUrl}/vtop/hostels/student/leave/1`,
       new URLSearchParams({
         verifyMenu: 'true',
         authorizedID: authData.authorizedID,
@@ -1848,7 +1865,7 @@ async function getLeaveStatus(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/content',
+          'Referer': `${baseUrl}/vtop/content`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1858,7 +1875,7 @@ async function getLeaveStatus(authData, session, sessionId) {
     
     // Step 2: Fetch leave status
     const res = await client.post(
-      'https://vtop.vit.ac.in/vtop/hostels/student/leave/4',
+      `${baseUrl}/vtop/hostels/student/leave/4`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -1869,7 +1886,7 @@ async function getLeaveStatus(authData, session, sessionId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hostels/student/leave/1',
+          'Referer': `${baseUrl}/vtop/hostels/student/leave/1`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }
@@ -1913,9 +1930,10 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
   try {
     console.log(`[${sessionId}] Fetching Faculty Details for empId: ${empId}`);
     const client = getClient(sessionId);
+    const baseUrl = getBaseUrl(getCampus(sessionId));
     
     const detailsRes = await client.post(
-      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      `${baseUrl}/vtop/hrms/EmployeeSearch1ForStudent`,
       new URLSearchParams({
         _csrf: authData.csrfToken,
         authorizedID: authData.authorizedID,
@@ -1925,7 +1943,7 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
           'X-Requested-With': 'XMLHttpRequest'
         }
       }

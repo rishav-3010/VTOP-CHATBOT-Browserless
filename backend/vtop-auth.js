@@ -45,30 +45,39 @@ function getSessionClient(sessionId) {
   return sessionClients.get(sessionId);
 }
 
+// Get base URL based on campus
+function getBaseUrl(campus = 'vellore') {
+  return campus === 'chennai' ? 'https://vtopcc.vit.ac.in' : 'https://vtop.vit.ac.in';
+}
+
 // Clean up session
 function destroySession(sessionId) {
   sessionClients.delete(sessionId);
   console.log(`Session ${sessionId} destroyed`);
 }
 
-async function loginToVTOP(username, password, sessionId) {
+async function loginToVTOP(username, password, sessionId, campus = 'vellore') {
   const MAX_CAPTCHA_ATTEMPTS = 3;
   const sessionData = getSessionClient(sessionId);
   const { client } = sessionData;
+  const baseUrl = getBaseUrl(campus);
+  
+  // Store campus in session data
+  sessionData.campus = campus;
   
   for (let captchaAttempt = 1; captchaAttempt <= MAX_CAPTCHA_ATTEMPTS; captchaAttempt++) {
     try {
-      const init = await client.get('https://vtop.vit.ac.in/vtop/open/page');
+      const init = await client.get(`${baseUrl}/vtop/open/page`);
       let csrf = getCsrf(init.data);
       
       const setup = await client.post(
-        'https://vtop.vit.ac.in/vtop/prelogin/setup',
+        `${baseUrl}/vtop/prelogin/setup`,
         new URLSearchParams({ _csrf: csrf, flag: 'VTOP' }),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
-            'Origin': 'https://vtop.vit.ac.in'
+            'Referer': `${baseUrl}/vtop/open/page`,
+            'Origin': baseUrl
           }
         }
       );
@@ -84,13 +93,13 @@ async function loginToVTOP(username, password, sessionId) {
           captchaBuffer = Buffer.from(src.split(',')[1], 'base64');
         } else {
           const retry = await client.post(
-            'https://vtop.vit.ac.in/vtop/prelogin/setup',
+            `${baseUrl}/vtop/prelogin/setup`,
             new URLSearchParams({ _csrf: csrf, flag: 'VTOP' }),
             {
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
-                'Origin': 'https://vtop.vit.ac.in'
+                'Referer': `${baseUrl}/vtop/open/page`,
+                'Origin': baseUrl
               }
             }
           );
@@ -105,7 +114,7 @@ async function loginToVTOP(username, password, sessionId) {
       console.log(`[${sessionId}] CAPTCHA solved:`, captcha);
       
       const loginRes = await client.post(
-        'https://vtop.vit.ac.in/vtop/login',
+        `${baseUrl}/vtop/login`,
         new URLSearchParams({
           _csrf: csrf,
           username: username,
@@ -115,8 +124,8 @@ async function loginToVTOP(username, password, sessionId) {
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Referer': 'https://vtop.vit.ac.in/vtop/open/page',
-            'Origin': 'https://vtop.vit.ac.in'
+            'Referer': `${baseUrl}/vtop/open/page`,
+            'Origin': baseUrl
           }
         }
       );
@@ -139,7 +148,7 @@ async function loginToVTOP(username, password, sessionId) {
         
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        const dashboardRes = await client.get('https://vtop.vit.ac.in/vtop/content');
+        const dashboardRes = await client.get(`${baseUrl}/vtop/content`);
         
         sessionData.csrf = getCsrf(dashboardRes.data);
         sessionData.authID = dashboardRes.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
@@ -171,7 +180,8 @@ async function getAuthData(sessionId) {
     return { csrfToken: sessionData.csrf, authorizedID: sessionData.authID };
   }
   
-  const res = await sessionData.client.get('https://vtop.vit.ac.in/vtop/content');
+  const baseUrl = getBaseUrl(sessionData.campus);
+  const res = await sessionData.client.get(`${baseUrl}/vtop/content`);
   sessionData.csrf = getCsrf(res.data);
   sessionData.authID = res.data.match(/\b\d{2}[A-Z]{3}\d{4}\b/)?.[0];
   
@@ -195,10 +205,16 @@ function getClient(sessionId) {
   return getSessionClient(sessionId).client;
 }
 
+function getCampus(sessionId) {
+  return getSessionClient(sessionId).campus || 'vellore';
+}
+
 module.exports = {
   loginToVTOP,
   getAuthData,
   makeAuthenticatedRequest,
   getClient,
-  destroySession
+  destroySession,
+  getBaseUrl,
+  getCampus
 };

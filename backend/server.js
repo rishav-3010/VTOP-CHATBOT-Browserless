@@ -767,7 +767,7 @@ IMPORTANT:
 // ===== LOGIN ENDPOINT =====
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password, useDemo, sessionId } = req.body;
+    const { username, password, useDemo, sessionId, campus = 'vellore' } = req.body;
     
     let session = getSession(sessionId);
     if (!session) {
@@ -796,7 +796,8 @@ app.post('/api/login', async (req, res) => {
       session.currentCredentials = {
         username: loginUsername,
         password: loginPassword,
-        isDemo: true
+        isDemo: true,
+        campus: 'vellore'
       };
     } else {
       if (!username || !password) {
@@ -810,12 +811,13 @@ app.post('/api/login', async (req, res) => {
       session.currentCredentials = {
         username: loginUsername,
         password: loginPassword,
-        isDemo: false
+        isDemo: false,
+        campus: campus
       };
     }
 
-    // Pass sessionId to loginToVTOP
-    const success = await loginToVTOP(loginUsername, loginPassword, sessionId);
+    // Pass sessionId and campus to loginToVTOP
+    const success = await loginToVTOP(loginUsername, loginPassword, sessionId, campus);
     
     if (success) {
       session.isLoggedIn = true;
