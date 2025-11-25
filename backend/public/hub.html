@@ -28,16 +28,16 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Lucide Icons as SVG components
+        // Icon Components (same as before)
         const GraduationCap = () => (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
                 <path d="M6 12v5c3 3 9 3 12 0v-5"/>
             </svg>
         );
 
         const Calendar = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
                 <line x1="16" x2="16" y1="2" y2="6"/>
                 <line x1="8" x2="8" y1="2" y2="6"/>
@@ -46,7 +46,7 @@
         );
 
         const BarChart3 = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 3v18h18"/>
                 <path d="M18 17V9"/>
                 <path d="M13 17V5"/>
@@ -55,67 +55,63 @@
         );
 
         const BookOpen = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
         );
 
         const CalendarCheck = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-                <line x1="16" x2="16" y1="2" y2="6"/>
-                <line x1="8" x2="8" y1="2" y2="6"/>
-                <line x1="3" x2="21" y1="10" y2="10"/>
                 <path d="m9 16 2 2 4-4"/>
             </svg>
         );
 
         const Clock = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
             </svg>
         );
 
         const History = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
-                <path d="M12 7v5l4 2"/>
             </svg>
         );
 
         const Eye = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
             </svg>
         );
 
         const Award = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="8" r="6"/>
                 <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
             </svg>
         );
 
         const CreditCard = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect width="20" height="14" x="2" y="5" rx="2"/>
                 <line x1="2" x2="22" y1="10" y2="10"/>
             </svg>
         );
 
         const User = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
             </svg>
         );
 
         const BookText = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
                 <path d="M8 7h6"/>
                 <path d="M8 11h8"/>
@@ -123,7 +119,7 @@
         );
 
         const Users = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                 <circle cx="9" cy="7" r="4"/>
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
@@ -132,7 +128,7 @@
         );
 
         const LogOut = () => (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" x2="9" y1="12" y2="12"/>
@@ -140,20 +136,20 @@
         );
 
         const Loader2 = () => (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
                 <path d="M21 12a9 9 0 11-6.219-8.56"/>
             </svg>
         );
 
         const Copy = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
                 <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
             </svg>
         );
 
         const RefreshCw = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
                 <path d="M21 3v5h-5"/>
                 <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
@@ -162,17 +158,10 @@
         );
 
         const AlertCircle = () => (
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" x2="12" y1="8" y2="12"/>
                 <line x1="12" x2="12.01" y1="16" y2="16"/>
-            </svg>
-        );
-
-        const Search = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
             </svg>
         );
 
@@ -183,18 +172,11 @@
             const [error, setError] = useState(null);
             const [sessionId, setSessionId] = useState(null);
             const [lastUpdated, setLastUpdated] = useState(null);
-            
-            // For faculty search
             const [facultySearch, setFacultySearch] = useState('');
-            const [facultyResults, setFacultyResults] = useState(null);
-            
-            // For calendar
-            const [selectedMonth, setSelectedMonth] = useState('JULY');
 
             useEffect(() => {
                 const sid = localStorage.getItem('sessionId');
                 if (!sid) {
-                    // Not logged in, redirect to home
                     window.location.href = '/';
                     return;
                 }
@@ -216,31 +198,32 @@
                 { id: 'gradeHistory', name: 'Grade History', icon: BookText, color: 'bg-violet-500' },
                 { id: 'counsellingRank', name: 'Counselling Rank', icon: Award, color: 'bg-amber-500' },
                 { id: 'facultyInfo', name: 'Faculty Search', icon: Users, color: 'bg-emerald-500', interactive: true },
-                { id: 'academicCalendar', name: 'Academic Calendar', icon: Calendar, color: 'bg-rose-500', interactive: true }
+                { id: 'academicCalendar', name: 'Academic Calendar', icon: Calendar, color: 'bg-rose-500' }
             ];
 
-            const fetchData = async (functionId) => {
+            // NEW: Direct data fetch without AI
+            const fetchData = async (functionId, params = {}) => {
                 setLoading(true);
                 setError(null);
-                setData(null);
                 
                 try {
-                    const response = await fetch('/api/chat', {
+                    const response = await fetch('/api/direct-data', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `get ${functionId}`,
-                            sessionId
+                            functionId,
+                            sessionId,
+                            params
                         })
                     });
                     
                     const result = await response.json();
                     
-                    if (result.data) {
-                        setData(result.data[functionId] || result.data);
+                    if (result.success) {
+                        setData(result.data);
                         setLastUpdated(new Date());
                     } else {
-                        setError('No data received');
+                        setError(result.error || 'Failed to fetch data');
                     }
                 } catch (err) {
                     setError(err.message);
@@ -252,50 +235,20 @@
             const handleFunctionClick = (func) => {
                 setSelectedFunction(func.id);
                 setError(null);
+                setData(null);
+                setFacultySearch('');
                 
-                if (func.interactive) {
-                    setData(null);
-                    setFacultySearch('');
-                    setFacultyResults(null);
-                    
-                    if (func.id === 'academicCalendar') {
-                        fetchData('academicCalendar');
-                    }
-                } else {
+                if (func.id !== 'facultyInfo') {
                     fetchData(func.id);
                 }
             };
 
-            const handleFacultySearch = async () => {
+            const handleFacultySearch = () => {
                 if (facultySearch.length < 3) {
                     setError('Please enter at least 3 characters');
                     return;
                 }
-                
-                setLoading(true);
-                setError(null);
-                
-                try {
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Find faculty ${facultySearch}`,
-                            sessionId
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.data?.facultyInfo) {
-                        setFacultyResults(result.data.facultyInfo);
-                        setData(result.data.facultyInfo);
-                    }
-                } catch (err) {
-                    setError(err.message);
-                } finally {
-                    setLoading(false);
-                }
+                fetchData('facultyInfo', { facultyName: facultySearch });
             };
 
             const handleLogout = async () => {
@@ -317,132 +270,763 @@
                 alert('Copied to clipboard!');
             };
 
-            const renderCGPA = (cgpaData) => (
-                React.createElement('div', { className: "space-y-4" }, [
-                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
-                        React.createElement('h2', { className: "text-2xl font-bold" }, "CGPA & Credits Status"),
-                        React.createElement('button', {
-                            onClick: () => copyToClipboard(JSON.stringify(cgpaData, null, 2)),
-                            className: "p-2 hover:bg-gray-100 rounded"
-                        }, React.createElement(Copy))
-                    ]),
-                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4", key: 'grid' },
-                        Object.entries(cgpaData).map(([key, value]) =>
-                            React.createElement('div', {
-                                key: key,
-                                className: "bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200"
-                            }, [
-                                React.createElement('div', { className: "text-sm text-gray-600 mb-1", key: 'label' }, key),
-                                React.createElement('div', { className: "text-2xl font-bold text-blue-900", key: 'value' }, value)
-                            ])
-                        )
-                    )
-                ])
-            );
-
-            const renderAttendance = (attendanceData) => (
-                React.createElement('div', { className: "space-y-4" }, [
-                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
-                        React.createElement('h2', { className: "text-2xl font-bold" }, "Attendance Report"),
-                        React.createElement('button', {
-                            onClick: () => copyToClipboard(JSON.stringify(attendanceData, null, 2)),
-                            className: "p-2 hover:bg-gray-100 rounded"
-                        }, React.createElement(Copy))
-                    ]),
-                    React.createElement('div', { className: "overflow-x-auto", key: 'table' },
-                        React.createElement('table', { className: "w-full border-collapse bg-white rounded-lg overflow-hidden shadow" }, [
-                            React.createElement('thead', { className: "bg-gradient-to-r from-green-500 to-emerald-500 text-white", key: 'thead' },
-                                React.createElement('tr', {}, [
-                                    React.createElement('th', { className: "p-3 text-left", key: 'course' }, "Course"),
-                                    React.createElement('th', { className: "p-3 text-left", key: 'attended' }, "Attended/Total"),
-                                    React.createElement('th', { className: "p-3 text-left", key: 'pct' }, "Percentage"),
-                                    React.createElement('th', { className: "p-3 text-left", key: 'status' }, "Status"),
-                                    React.createElement('th', { className: "p-3 text-left", key: 'action' }, "Action Needed")
-                                ])
-                            ),
-                            React.createElement('tbody', { key: 'tbody' },
-                                attendanceData.map((course, idx) =>
-                                    React.createElement('tr', {
-                                        key: idx,
-                                        className: `border-b ${
-                                            course.alertStatus === 'danger' ? 'bg-red-50' :
-                                            course.alertStatus === 'caution' ? 'bg-yellow-50' : 'bg-green-50'
-                                        } hover:bg-opacity-75 transition-colors`
-                                    }, [
-                                        React.createElement('td', { className: "p-3 font-medium", key: 'course' }, course.courseDetail),
-                                        React.createElement('td', { className: "p-3", key: 'attended' }, `${course.attendedClasses}/${course.totalClasses}`),
-                                        React.createElement('td', { className: "p-3 font-bold", key: 'pct' }, `${course.attendancePercentage}%`),
-                                        React.createElement('td', { className: "p-3", key: 'status' },
-                                            course.alertStatus === 'danger' ? '🔴' : course.alertStatus === 'caution' ? '⚠️' : '✅'
-                                        ),
-                                        React.createElement('td', { className: "p-3 text-sm", key: 'msg' }, course.alertMessage)
-                                    ])
-                                )
-                            )
-                        ])
-                    )
-                ])
-            );
-
             const renderContent = () => {
-                if (loading) {
-                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
-                        React.createElement('div', { className: "text-center" }, [
-                            React.createElement(Loader2, { key: 'spinner' }),
-                            React.createElement('p', { className: "text-gray-600 mt-4", key: 'text' }, "Loading data...")
-                        ])
-                    );
-                }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <Loader2 />
+          <p className="text-gray-600 mt-4">Loading data...</p>
+        </div>
+      </div>
+    );
+  }
 
-                if (error) {
-                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
-                        React.createElement('div', { className: "text-center bg-red-50 p-6 rounded-lg border border-red-200" }, [
-                            React.createElement(AlertCircle, { key: 'icon', className: "mx-auto mb-4 text-red-600" }),
-                            React.createElement('p', { className: "text-red-600 font-semibold mb-2", key: 'title' }, "Error"),
-                            React.createElement('p', { className: "text-gray-700 mb-4", key: 'msg' }, error),
-                            React.createElement('button', {
-                                onClick: () => selectedFunction && handleFunctionClick(functions.find(f => f.id === selectedFunction)),
-                                className: "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700",
-                                key: 'retry'
-                            }, "Try Again")
-                        ])
-                    );
-                }
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center bg-red-50 p-6 rounded-lg border border-red-200">
+          <AlertCircle className="mx-auto mb-4 text-red-600" />
+          <p className="text-red-600 font-semibold mb-2">Error</p>
+          <p className="text-gray-700 mb-4">{error}</p>
+          <button
+            onClick={() => selectedFunction && handleFunctionClick(functions.find(f => f.id === selectedFunction))}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-                if (!selectedFunction) {
-                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
-                        React.createElement('div', { className: "text-center" }, [
-                            React.createElement(GraduationCap, { key: 'icon', style: { width: '64px', height: '64px', margin: '0 auto 16px', color: '#9ca3af' } }),
-                            React.createElement('h2', { className: "text-2xl font-bold text-gray-700 mb-2", key: 'title' }, "Welcome to VTOP Hub"),
-                            React.createElement('p', { className: "text-gray-600", key: 'subtitle' }, "Select a function from the sidebar to view your data")
-                        ])
-                    );
-                }
+  if (!selectedFunction) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <GraduationCap style={{ width: '64px', height: '64px', margin: '0 auto 16px', color: '#9ca3af' }} />
+          <h2 className="text-2xl font-bold text-gray-700 mb-2">Welcome to VTOP Hub</h2>
+          <p className="text-gray-600">Select a function from the sidebar to view your data instantly</p>
+        </div>
+      </div>
+    );
+  }
 
-                if (!data) return null;
+    if (selectedFunction === 'facultyInfo') {
+    // Show search input if no data yet
+    if (!data && !loading && !error) {
+      return (
+        <div className="max-w-2xl mx-auto mt-20">
+          <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">🔍 Faculty Search</h2>
+            <p className="text-gray-600 mb-4">Enter the faculty member's name (at least 3 characters)</p>
+            
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={facultySearch}
+                onChange={(e) => setFacultySearch(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleFacultySearch()}
+                placeholder="e.g., Yokesh, Rajesh Kumar, etc."
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                onClick={handleFacultySearch}
+                disabled={facultySearch.length < 3}
+                className="px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                Search
+              </button>
+            </div>
+            
+            {facultySearch.length > 0 && facultySearch.length < 3 && (
+              <p className="text-amber-600 text-sm mt-2">⚠️ Please enter at least 3 characters</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Handle error
+    if (data?.error) {
+      return (
+        <div className="max-w-2xl mx-auto mt-20">
+          <div className="bg-red-50 p-6 rounded-lg border border-red-200">
+            <AlertCircle className="mx-auto mb-4 text-red-600" />
+            <p className="text-red-600 font-semibold mb-2">Error</p>
+            <p className="text-gray-700">{data.error}</p>
+            <button
+              onClick={() => {
+                setData(null);
+                setError(null);
+                setFacultySearch('');
+              }}
+              className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
 
-                // Render based on function
-                if (selectedFunction === 'cgpa') return renderCGPA(data);
-                if (selectedFunction === 'attendance') return renderAttendance(data);
+    // Multiple faculty results - show expandable cards
+    if (data?.requiresSelection && data?.faculties) {
+      return (
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+            <p className="text-blue-700 font-medium">{data.message}</p>
+          </div>
+          
+          {data.faculties.map((faculty) => (
+            <div 
+              key={faculty.empId} 
+              className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200"
+            >
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-gray-900 mb-1">{faculty.name}</h3>
+                    <p className="text-sm text-gray-600 mb-1">{faculty.designation}</p>
+                    <p className="text-sm text-blue-600">{faculty.school}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/faculty/select', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ empId: faculty.empId, sessionId })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                          setData({
+                            ...faculty,
+                            details: result.data.details,
+                            openHours: result.data.openHours
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error fetching faculty details:', error);
+                        setError('Failed to fetch faculty details');
+                      }
+                    }}
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-semibold"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
 
-                // Generic render for other functions
-                return React.createElement('div', { className: "space-y-4" }, [
-                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
-                        React.createElement('h2', { className: "text-2xl font-bold capitalize", key: 'title' },
-                            selectedFunction.replace(/([A-Z])/g, ' $1').trim()
-                        ),
-                        React.createElement('button', {
-                            onClick: () => copyToClipboard(JSON.stringify(data, null, 2)),
-                            className: "p-2 hover:bg-gray-100 rounded",
-                            key: 'copy'
-                        }, React.createElement(Copy))
-                    ]),
-                    React.createElement('pre', {
-                        className: "bg-gray-50 p-4 rounded-lg overflow-auto max-h-96 text-sm",
-                        key: 'data'
-                    }, JSON.stringify(data, null, 2))
-                ]);
-            };
+    // Single faculty result (when user clicks "View Details" or direct search with one result)
+    if (data?.details) {
+      return (
+        <div className="max-w-2xl mx-auto mt-10">
+          <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{data.name}</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <p className="text-xs text-gray-600">Designation</p>
+                <p className="font-semibold text-gray-900">{data.designation}</p>
+              </div>
+              {data.details['Name of Department'] && (
+                <div>
+                  <p className="text-xs text-gray-600">Department</p>
+                  <p className="font-semibold text-gray-900">{data.details['Name of Department']}</p>
+                </div>
+              )}
+              {data.details.School && (
+                <div>
+                  <p className="text-xs text-gray-600">School</p>
+                  <p className="font-semibold text-gray-900">{data.details.School}</p>
+                </div>
+              )}
+              {data.school && !data.details.School && (
+                <div>
+                  <p className="text-xs text-gray-600">School</p>
+                  <p className="font-semibold text-gray-900">{data.school}</p>
+                </div>
+              )}
+              {data.details['E-Mail Id'] && (
+                <div>
+                  <p className="text-xs text-gray-600">📧 Email</p>
+                  <p className="font-semibold text-blue-600 text-sm">{data.details['E-Mail Id']}</p>
+                </div>
+              )}
+              {data.details['Cabin Number'] && (
+                <div>
+                  <p className="text-xs text-gray-600">🚪 Cabin Number</p>
+                  <p className="font-semibold text-gray-900">{data.details['Cabin Number']}</p>
+                </div>
+              )}
+            </div>
+
+            {data.openHours?.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-3">🕐 Open Hours</p>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  {data.openHours.map((hour, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="font-medium text-gray-700">{hour.day}</span>
+                      <span className="text-gray-600">{hour.timing}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // If no specific case matched but we have data
+    return null;
+  }
+  
+  if (!data) return null;
+
+  // Use the new formatted renderer
+  return renderFormattedData();
+};
+
+            // Add this after the renderContent function definition (around line 400+)
+
+const renderFormattedData = () => {
+  if (!data) return null;
+
+  // CGPA Credits Display
+  if (selectedFunction === 'cgpa') {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+            <p className="text-sm text-gray-600 mb-1">{key}</p>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Attendance Display
+  if (selectedFunction === 'attendance') {
+    return (
+      <div className="space-y-4">
+        {data.map((course, idx) => (
+          <div 
+            key={idx} 
+            className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${
+              course.alertStatus === 'danger' ? 'border-red-500' : 'border-green-500'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-gray-900 mb-1">
+                  {course.courseDetail.split(' - ')[1]}
+                </h3>
+                <p className="text-sm text-gray-600">{course.courseDetail.split(' - ')[0]}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                course.alertStatus === 'danger' 
+                  ? 'bg-red-100 text-red-700' 
+                  : 'bg-green-100 text-green-700'
+              }`}>
+                {course.attendancePercentage}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-600">Classes Attended</p>
+                <p className="text-xl font-semibold">{course.attendedClasses} / {course.totalClasses}</p>
+              </div>
+              {course.isLab && (
+                <div>
+                  <p className="text-sm text-gray-600">Type</p>
+                  <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">LAB</span>
+                </div>
+              )}
+            </div>
+
+            <div className={`p-3 rounded ${
+              course.alertStatus === 'danger' ? 'bg-red-50' : 'bg-green-50'
+            }`}>
+              <p className={`text-sm font-medium ${
+                course.alertStatus === 'danger' ? 'text-red-700' : 'text-green-700'
+              }`}>
+                {course.alertMessage}
+              </p>
+              {course.debarStatus !== '-' && (
+                <p className="text-xs text-red-600 mt-2">⚠️ Debar Status: {course.debarStatus.trim()}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Marks Display (CAT scores, weightages)
+  if (selectedFunction === 'marks') {
+    return (
+      <div className="space-y-6">
+        {data.map((course, idx) => (
+          <div key={idx} className="bg-white p-6 rounded-lg shadow-md">
+            <div className="mb-4">
+              <h3 className="font-bold text-xl text-gray-900 mb-1">{course.courseTitle}</h3>
+              <div className="flex gap-4 text-sm text-gray-600">
+                <span>📚 {course.courseCode}</span>
+                <span>👨‍🏫 {course.faculty}</span>
+                <span>🕐 {course.slot}</span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Assessment</th>
+                    <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Scored</th>
+                    <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Max</th>
+                    <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">Weightage</th>
+                    <th className="text-right py-2 px-3 text-sm font-semibold text-gray-700">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {course.marks.map((mark, markIdx) => (
+                    <tr 
+                      key={markIdx} 
+                      className={`border-b border-gray-100 ${
+                        mark.isTotal ? 'bg-blue-50 font-semibold' : ''
+                      }`}
+                    >
+                      <td className="py-3 px-3 text-sm">{mark.title}</td>
+                      <td className="py-3 px-3 text-sm text-right">{mark.scored}</td>
+                      <td className="py-3 px-3 text-sm text-right">{mark.max}</td>
+                      <td className="py-3 px-3 text-sm text-right font-medium text-blue-600">{mark.weightage}</td>
+                      <td className="py-3 px-3 text-sm text-right text-gray-600">{mark.percent}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {course.marks.find(m => m.isTotal)?.lostWeightage && (
+              <div className="mt-4 p-3 bg-orange-50 rounded border-l-4 border-orange-400">
+                <p className="text-sm text-orange-700">
+                  <span className="font-semibold">Lost Weightage: </span>
+                  {course.marks.find(m => m.isTotal).lostWeightage} marks
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Assignments Display (New - Fixed!)
+  if (selectedFunction === 'assignments') {
+    const subjects = data.subjects || [];
+    return (
+      <div className="space-y-6">
+        {subjects.map((subject, idx) => (
+          <div key={idx} className="bg-white p-6 rounded-lg shadow-md">
+            <div className="mb-4">
+              <h3 className="font-bold text-xl text-gray-900 mb-1">{subject.courseTitle}</h3>
+              <p className="text-sm text-gray-600">{subject.courseCode}</p>
+            </div>
+
+            <div className="space-y-3">
+              {subject.assignments.map((assignment, assIdx) => {
+                const isOverdue = assignment.daysLeft < 0;
+                const isDueSoon = assignment.daysLeft >= 0 && assignment.daysLeft <= 3;
+                
+                return (
+                  <div 
+                    key={assIdx} 
+                    className={`p-4 rounded-lg border-l-4 ${
+                      isOverdue ? 'bg-red-50 border-red-500' :
+                      isDueSoon ? 'bg-yellow-50 border-yellow-500' :
+                      'bg-green-50 border-green-500'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{assignment.title}</h4>
+                        <p className="text-sm text-gray-600">Due: {assignment.dueDate}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        isOverdue ? 'bg-red-100 text-red-700' :
+                        isDueSoon ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {assignment.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+    // Exam Schedule Display
+  if (selectedFunction === 'examSchedule') {
+    const examTypes = Object.keys(data);
+    return (
+      <div className="space-y-8">
+        {examTypes.map((examType) => (
+          <div key={examType}>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">{examType}</h2>
+            <div className="space-y-4">
+              {data[examType].map((exam, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-900">{exam.courseTitle}</h3>
+                      <p className="text-sm text-gray-600">{exam.courseCode} • {exam.slot}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
+                      {exam.examDate}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Session</p>
+                      <p className="font-semibold">{exam.examSession}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Reporting</p>
+                      <p className="font-semibold">{exam.reportingTime}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Exam Time</p>
+                      <p className="font-semibold">{exam.examTime}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Venue</p>
+                      <p className="font-semibold">{exam.venue} {exam.seatNo !== '-' && `(Seat: ${exam.seatNo})`}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Timetable Display
+  if (selectedFunction === 'timetable') {
+    const schedule = data.schedule || {};
+    const days = Object.keys(schedule);
+    return (
+      <div className="space-y-6">
+        {days.map((day) => (
+          <div key={day} className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-xl font-bold mb-4 text-gray-900 border-b pb-2">{day}</h3>
+            <div className="space-y-3">
+              {schedule[day].map((classItem, idx) => (
+                <div key={idx} className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-shrink-0 w-24 text-sm font-semibold text-blue-600">
+                    {classItem.time}
+                  </div>
+                  <div className="flex-1 ml-4">
+                    <p className="font-semibold text-gray-900">{classItem.courseTitle}</p>
+                    <p className="text-sm text-gray-600">
+                      {classItem.courseCode} • {classItem.slot} • {classItem.venue} • {classItem.faculty}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+// Academic Calendar Display
+if (selectedFunction === 'academicCalendar') {
+  const calendar = data.calendar || {};
+  const months = Object.keys(calendar);
+  
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards at Top */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500">
+          <p className="text-sm text-gray-600">📚 Instructional Days</p>
+          <p className="text-2xl font-bold">{data.summary?.totalInstructionalDays || 0}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-yellow-500">
+          <p className="text-sm text-gray-600">📝 Exam Days</p>
+          <p className="text-2xl font-bold">{data.summary?.totalExams || 0}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-red-500">
+          <p className="text-sm text-gray-600">🎉 Holidays</p>
+          <p className="text-2xl font-bold">{data.summary?.totalHolidays || 0}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500">
+          <p className="text-sm text-gray-600">📅 Months</p>
+          <p className="text-2xl font-bold">{data.summary?.monthsCovered || 0}</p>
+        </div>
+      </div>
+
+      {/* Month by Month Calendar */}
+      {months.map(month => {
+        // Remove duplicate entries (notes that appear as separate events)
+        const cleanEvents = calendar[month]
+          .filter(event => !event.event.startsWith('('))
+          .reduce((acc, event) => {
+            const existing = acc.find(e => e.day === event.day);
+            if (!existing) {
+              acc.push(event);
+            }
+            return acc;
+          }, []);
+
+        return (
+          <div key={month} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
+              <h3 className="text-xl font-bold text-white">📅 {month} 2026</h3>
+            </div>
+            
+            <div className="p-4">
+              <div className="space-y-2">
+                {cleanEvents.map((event, idx) => {
+                  const isHoliday = event.event === 'Holiday';
+                  const isExam = event.event.startsWith('CAT');
+                  const isSpecial = event.note && event.note !== '';
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`flex items-center p-3 rounded-lg ${
+                        isHoliday ? 'bg-red-50 border-l-4 border-red-500' :
+                        isExam ? 'bg-yellow-50 border-l-4 border-yellow-500' :
+                        'bg-gray-50 border-l-4 border-blue-500'
+                      }`}
+                    >
+                      <div className="flex-shrink-0 w-16 text-center">
+                        <p className="text-2xl font-bold text-gray-900">{event.day}</p>
+                      </div>
+                      
+                      <div className="flex-1 ml-4">
+                        <p className={`font-semibold ${
+                          isHoliday ? 'text-red-700' :
+                          isExam ? 'text-yellow-700' :
+                          'text-gray-900'
+                        }`}>
+                          {event.event}
+                        </p>
+                        {event.note && (
+                          <p className="text-sm text-gray-600 mt-1">{event.note}</p>
+                        )}
+                      </div>
+                      
+                      {isHoliday && <span className="text-2xl">🎉</span>}
+                      {isExam && <span className="text-2xl">📝</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+  // Leave Status Display
+  if (selectedFunction === 'leaveStatus') {
+    if (Array.isArray(data) && data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-6xl mb-4">✅</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No Leave Applications</h3>
+            <p className="text-gray-600">You have no pending or processed leave requests</p>
+          </div>
+        </div>
+      );
+    }
+    // If there are leaves, show them
+    return (
+      <div className="space-y-4">
+        {data.map((leave, idx) => (
+          <div key={idx} className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="font-bold text-lg">{leave.reason}</h3>
+                <p className="text-sm text-gray-600">
+                  {leave.fromDate} to {leave.toDate}
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                leave.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                leave.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                'bg-yellow-100 text-yellow-700'
+              }`}>
+                {leave.status}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Grades Display
+  if (selectedFunction === 'grades') {
+    const grades = data.grades || [];
+    const gpa = data.gpa || '';
+    
+    return (
+      <div className="space-y-6">
+        {gpa && (
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-3xl font-bold">{gpa}</h2>
+          </div>
+        )}
+        
+        <div className="overflow-x-auto bg-white rounded-lg shadow-md">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Course</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Type</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Credits</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {grades.map((grade, idx) => (
+                <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4">
+                    <p className="font-semibold text-gray-900">{grade.courseTitle}</p>
+                    <p className="text-sm text-gray-600">{grade.courseCode}</p>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{grade.courseType}</td>
+                  <td className="py-3 px-4 text-center font-medium">{grade.creditsC}</td>
+                  <td className="py-3 px-4 text-center font-medium">{grade.total}</td>
+                  <td className="py-3 px-4 text-center">
+                    <span className={`px-3 py-1 rounded-full font-bold text-sm ${
+                      grade.grade === 'S' ? 'bg-purple-100 text-purple-700' :
+                      grade.grade === 'A' ? 'bg-green-100 text-green-700' :
+                      grade.grade === 'B' ? 'bg-blue-100 text-blue-700' :
+                      grade.grade === 'C' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {grade.grade}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Leave History Display (actual leave applications)
+  if (selectedFunction === 'leaveHistory') {
+    if (!Array.isArray(data) || data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-6xl mb-4">📝</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No Leave History</h3>
+            <p className="text-gray-600">You have no past leave applications</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {data.map((leave, idx) => {
+          const isApproved = leave.status.includes('APPROVED');
+          const isCancelled = leave.status.includes('CANCELLED');
+          const isRejected = leave.status.includes('cancelled due to');
+          
+          return (
+            <div 
+              key={idx} 
+              className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${
+                isApproved ? 'border-green-500' :
+                isCancelled || isRejected ? 'border-red-500' :
+                'border-yellow-500'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">{leave.reason}</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    📍 {leave.place} • 🏷️ {leave.type}
+                  </p>
+                  <p className="text-sm font-medium text-gray-700">
+                    📅 {leave.from} → {leave.to}
+                  </p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                  isApproved ? 'bg-green-100 text-green-700' :
+                  isCancelled || isRejected ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {isApproved ? 'APPROVED' : isCancelled ? 'CANCELLED' : isRejected ? 'CANCELLED' : 'PENDING'}
+                </span>
+              </div>
+              
+              <div className={`mt-3 p-3 rounded text-sm ${
+                isApproved ? 'bg-green-50 text-green-700' :
+                isCancelled || isRejected ? 'bg-red-50 text-red-700' :
+                'bg-yellow-50 text-yellow-700'
+              }`}>
+                {leave.status}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold capitalize">
+          {selectedFunction.replace(/([A-Z])/g, ' $1').trim()}
+        </h2>
+        <button
+          onClick={() => copyToClipboard(JSON.stringify(data, null, 2))}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <Copy />
+          <span className="text-sm">Copy JSON</span>
+        </button>
+      </div>
+      <pre className="bg-gray-50 p-4 rounded-lg overflow-auto max-h-[70vh] text-sm border border-gray-200">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    </div>
+  );
+};
 
             return React.createElement('div', { className: "h-screen flex bg-gray-50" }, [
                 // Sidebar
@@ -452,7 +1036,7 @@
                             React.createElement(GraduationCap, { key: 'icon', style: { color: '#2563eb' } }),
                             React.createElement('h1', { className: "font-bold text-lg", key: 'title' }, "VTOP Hub")
                         ]),
-                        React.createElement('p', { className: "text-xs text-gray-600" }, "Direct Data Access")
+                        React.createElement('p', { className: "text-xs text-gray-600" }, "⚡ Instant Data Access")
                     ]),
                     
                     React.createElement('div', { className: "p-2 flex-1 overflow-y-auto", key: 'functions' },
@@ -495,7 +1079,7 @@
                             key: 'meta'
                         }, [
                             React.createElement('p', { className: "text-sm text-gray-600", key: 'time' },
-                                `Last updated: ${lastUpdated.toLocaleTimeString()}`
+                                `⚡ Loaded in: ${lastUpdated.toLocaleTimeString()}`
                             ),
                             React.createElement('button', {
                                 onClick: () => handleFunctionClick(functions.find(f => f.id === selectedFunction)),
