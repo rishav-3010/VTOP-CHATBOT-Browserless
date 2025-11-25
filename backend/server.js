@@ -18,9 +18,13 @@ const {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
+  getFacultyDetailsByEmpId,
   getAcademicCalendar,
   getLeaveStatus
 } = require('./vtop-functions');
+const { searchPapers } = require('./papers');
+const { searchCodeChefPapers } = require('./codechef-papers');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -203,6 +207,11 @@ async function generateResponse(intent, data, originalMessage, session) {
     > - 🔴 Red: Attendance < 75%
     
     Use markdown formatting (bold, emphasis) for important points.
+    IMP: If user is asking for particular subject attendance then show only that subject attendance not all subjects.
+    and if user is asking for best/worst subject then include that in analysis part only not in table part.
+    and if user is asking for only danger/caution/safe subjects then show only those subjects in table part.
+    and if user is asking for particular subject like IoT or DS etc then show only that subject attendance not all subjects.
+    and if user is asking for classes needed to reach 75% then include that in analysis part only not in table part.
   `;
   break;
       
@@ -264,6 +273,13 @@ async function generateResponse(intent, data, originalMessage, session) {
     - Recommendations
     
     Use markdown formatting and emojis for visual appeal.
+    IMP: Sometimes dont ask more than the user asked for example if user is asking for only IoT marks then show only IoT marks not all.
+    and if user is asking for best/worst subject then include that in analysis part only not in table part.
+    and also if user is asking for particular assessment like CAT1 marks then show only CAT1 marks not CAT2 or total.
+    and if user is asking for weightage marks only then show only weightage marks not scored or maximum
+    and if user is asking for only theory or lab marks then show only that not both.
+    and if user is asking for particular subject like IoT or DS etc then show only that subject marks not all subjects.
+    but definetly use markdown even if user is asking for single subject marks
   `;
   break;
 
@@ -1193,6 +1209,39 @@ app.post('/api/logout', async (req, res) => {
   res.json({ success: true });
 });
 
+// ===== APPLY LEAVE ENDPOINT =====
+app.post('/api/leave/apply', async (req, res) => {
+  try {
+    const { leaveType, visitingPlace, fromDate, toDate, fromTime, toTime, reason } = req.body;
+    const sessionId = req.body.sessionId || req.sessionID;
+    
+    const session = getSession(sessionId);
+    if (!session || !session.isLoggedIn) {
+      return res.json({
+        response: 'Session expired. Please refresh the page.',
+        data: null
+      });
+    }
+    
+    const authData = await getAuthData(sessionId);
+    const result = await applyLeave(authData, session, sessionId, {
+      leaveType,
+      visitingPlace,
+      fromDate,
+      toDate,
+      fromTime,
+      toTime,
+      reason
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Leave application error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // ===== FACULTY SELECTION ENDPOINT =====
 app.post('/api/faculty/select', async (req, res) => {
   try {
@@ -1229,22 +1278,12 @@ app.post('/api/papers/search', async (req, res) => {
   console.log('----------------------------------');
   try {
     const { courseCode, courseName, paperType } = req.body;
-    const { searchPapers } = require('./papers');
-    
+
     console.log('📥 Search parameters:', {
       courseCode: courseCode || '(not provided)',
       courseName: courseName || '(not provided)',
       paperType: paperType || 'all'
     });
-    
-    // Check for GitHub token first
-    if (!process.env.GITHUB_TOKEN) {
-      console.warn('⚠️ WARNING: GITHUB_TOKEN not set');
-      console.warn('📢 API rate limits will be restricted to 60 requests/hour');
-      console.warn('💡 Add a token to .env file for 5000 requests/hour');
-    } else {
-      console.log('✅ Using GitHub token for authenticated requests');
-    }
     
     if (!courseCode && !courseName) {
       return res.status(400).json({
@@ -1256,65 +1295,179 @@ app.post('/api/papers/search', async (req, res) => {
       });
     }
 
-    const results = await searchPapers({ courseCode, courseName, paperType });
+    console.log('🔍 Searching multiple sources...');
     
-    if (Array.isArray(results)) {
-      res.json({
-        success: true,
-        results: results.map(paper => ({
-          title: paper.title,
-          courseCode: paper.courseCode,
-          type: paper.examType,
-          year: paper.year,
-          term: paper.term,
-          subject: paper.subject,
-          url: paper.downloadUrl
-        }))
-      });
+    const [githubResults, codechefResults] = await Promise.allSettled([
+      searchPapers({ courseCode, courseName, paperType }),
+      searchCodeChefPapers({ courseCode, courseName, paperType })
+    ]);
+
+    let allResults = [];
+    
+    if (githubResults.status === 'fulfilled' && Array.isArray(githubResults.value)) {
+      console.log(`✅ GitHub: Found ${githubResults.value.length} papers`);
+      allResults.push(...githubResults.value);
     } else {
-      res.status(503).json({
-        success: false,
-        error: {
-          message: "Rate limit exceeded",
-          retryAfter: results.retryAfter,
-          type: "RATE_LIMIT"
-        }
-      });
+      console.log('⚠️ GitHub: Failed or rate limited');
     }
+    
+    if (codechefResults.status === 'fulfilled' && Array.isArray(codechefResults.value)) {
+      console.log(`✅ CodeChef: Found ${codechefResults.value.length} papers`);
+      allResults.push(...codechefResults.value);
+    } else {
+      console.log('⚠️ CodeChef: Failed or no results');
+    }
+
+    console.log(`📊 Total papers found: ${allResults.length}`);
+
+    res.json({
+      success: true,
+      totalResults: allResults.length,
+      sources: {
+        github: githubResults.status === 'fulfilled' ? githubResults.value.length : 0,
+        codechef: codechefResults.status === 'fulfilled' ? codechefResults.value.length : 0
+      },
+      results: allResults.map(paper => ({
+        title: paper.title,
+        courseCode: paper.courseCode,
+        type: paper.examType,
+        year: paper.year,
+        term: paper.term,
+        subject: paper.subject,
+        url: paper.downloadUrl,
+        source: paper.source || 'GitHub',
+        thumbnail: paper.thumbnailUrl || null,
+        metadata: paper.metadata || {}
+      }))
+    });
+
   } catch (error) {
     console.error('Papers search error:', error);
-    const isRateLimit = error.message?.toLowerCase().includes('rate limit') ||
-                       error.response?.status === 403;
-                       
-    if (isRateLimit) {
-      const resetTime = error.response?.headers?.['x-ratelimit-reset'] * 1000 || Date.now() + 3600000;
-      res.status(429).json({
-        success: false,
-        error: {
-          message: "GitHub API rate limit exceeded. Please try again later.",
-          retryAfter: new Date(resetTime).toISOString(),
-          type: "RATE_LIMIT"
-        }
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: {
-          message: "Failed to search papers",
-          details: error.message,
-          type: "INTERNAL_ERROR"
-        }
-      });
-    }
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to search papers",
+        details: error.message,
+        type: "INTERNAL_ERROR"
+      }
+    });
   }
 });
 
-// Serve React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// ===== DIRECT DATA ENDPOINT (NO AI PROCESSING) =====
+// Add this RIGHT BEFORE app.listen() in server.js
+
+app.post('/api/direct-data', async (req, res) => {
+  try {
+    const { functionId, sessionId, params } = req.body;
+    const session = getSession(sessionId);
+
+    if (!session || !session.isLoggedIn) {
+      return res.json({ 
+        success: false,
+        error: 'Session expired. Please refresh the page.' 
+      });
+    }
+
+    const authData = await getAuthData(sessionId);
+    let data = null;
+
+    // Direct function mapping - NO AI INVOLVED
+    switch (functionId) {
+      case 'cgpa':
+        data = await getCGPA(authData, session, sessionId);
+        break;
+      
+      case 'attendance':
+        data = await getAttendance(authData, session, sessionId);
+        break;
+      
+      case 'marks':
+        data = await getMarks(authData, session, sessionId);
+        break;
+      
+      case 'assignments':
+        data = await getAssignments(authData, session, sessionId);
+        break;
+      
+      case 'examSchedule':
+        data = await getExamSchedule(authData, session, sessionId);
+        break;
+      
+      case 'timetable':
+        data = await getTimetable(authData, session, sessionId);
+        break;
+      
+      case 'leaveHistory':
+        data = await getLeaveHistory(authData, session, sessionId);
+        break;
+      
+      case 'leaveStatus':
+        data = await getLeaveStatus(authData, session, sessionId);
+        break;
+      
+      case 'grades':
+        data = await getGrades(authData, session, sessionId);
+        break;
+      
+      case 'paymentHistory':
+        data = await getPaymentHistory(authData, session, sessionId);
+        break;
+      
+      case 'proctorDetails':
+        data = await getProctorDetails(authData, session, sessionId);
+        break;
+      
+      case 'gradeHistory':
+        data = await getGradeHistory(authData, session, sessionId);
+        break;
+      
+      case 'counsellingRank':
+        data = await getCounsellingRank(authData, session, sessionId);
+        break;
+      
+      case 'facultyInfo':
+        if (!params?.facultyName) {
+          return res.json({ 
+            success: false, 
+            error: 'Faculty name is required' 
+          });
+        }
+        data = await getFacultyInfo(authData, session, sessionId, params.facultyName);
+        break;
+      
+      case 'academicCalendar':
+        data = await getAcademicCalendar(authData, session, sessionId);
+        break;
+      
+      default:
+        return res.json({ 
+          success: false, 
+          error: 'Unknown function' 
+        });
+    }
+
+    res.json({ 
+      success: true, 
+      data,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error(`[${req.body.sessionId}] Direct data error:`, error);
+    res.json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 VTOP Server running on port ${PORT}`);
   console.log(`📱 Frontend: http://localhost:${PORT}`);
 });
+
+       
+    
+
+    

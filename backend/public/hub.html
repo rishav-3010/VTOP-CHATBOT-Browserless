@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTOP Hub - Direct Data Access</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Lucide Icons as SVG components
+        const GraduationCap = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+        );
+
+        const Calendar = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                <line x1="16" x2="16" y1="2" y2="6"/>
+                <line x1="8" x2="8" y1="2" y2="6"/>
+                <line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+        );
+
+        const BarChart3 = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M18 17V9"/>
+                <path d="M13 17V5"/>
+                <path d="M8 17v-3"/>
+            </svg>
+        );
+
+        const BookOpen = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+        );
+
+        const CalendarCheck = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                <line x1="16" x2="16" y1="2" y2="6"/>
+                <line x1="8" x2="8" y1="2" y2="6"/>
+                <line x1="3" x2="21" y1="10" y2="10"/>
+                <path d="m9 16 2 2 4-4"/>
+            </svg>
+        );
+
+        const Clock = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        );
+
+        const History = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+                <path d="M12 7v5l4 2"/>
+            </svg>
+        );
+
+        const Eye = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        );
+
+        const Award = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="6"/>
+                <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
+            </svg>
+        );
+
+        const CreditCard = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="14" x="2" y="5" rx="2"/>
+                <line x1="2" x2="22" y1="10" y2="10"/>
+            </svg>
+        );
+
+        const User = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+        );
+
+        const BookText = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                <path d="M8 7h6"/>
+                <path d="M8 11h8"/>
+            </svg>
+        );
+
+        const Users = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+        );
+
+        const LogOut = () => (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" x2="9" y1="12" y2="12"/>
+            </svg>
+        );
+
+        const Loader2 = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+            </svg>
+        );
+
+        const Copy = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+            </svg>
+        );
+
+        const RefreshCw = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M8 16H3v5"/>
+            </svg>
+        );
+
+        const AlertCircle = () => (
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" x2="12" y1="8" y2="12"/>
+                <line x1="12" x2="12.01" y1="16" y2="16"/>
+            </svg>
+        );
+
+        const Search = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+            </svg>
+        );
+
+        const VTOPHub = () => {
+            const [selectedFunction, setSelectedFunction] = useState(null);
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [sessionId, setSessionId] = useState(null);
+            const [lastUpdated, setLastUpdated] = useState(null);
+            
+            // For faculty search
+            const [facultySearch, setFacultySearch] = useState('');
+            const [facultyResults, setFacultyResults] = useState(null);
+            
+            // For calendar
+            const [selectedMonth, setSelectedMonth] = useState('JULY');
+
+            useEffect(() => {
+                const sid = localStorage.getItem('sessionId');
+                if (!sid) {
+                    // Not logged in, redirect to home
+                    window.location.href = '/';
+                    return;
+                }
+                setSessionId(sid);
+            }, []);
+
+            const functions = [
+                { id: 'cgpa', name: 'CGPA & Credits', icon: GraduationCap, color: 'bg-blue-500' },
+                { id: 'attendance', name: 'Attendance', icon: Calendar, color: 'bg-green-500' },
+                { id: 'marks', name: 'Marks', icon: BarChart3, color: 'bg-purple-500' },
+                { id: 'assignments', name: 'Assignments', icon: BookOpen, color: 'bg-orange-500' },
+                { id: 'examSchedule', name: 'Exam Schedule', icon: CalendarCheck, color: 'bg-red-500' },
+                { id: 'timetable', name: 'Timetable', icon: Clock, color: 'bg-indigo-500' },
+                { id: 'leaveHistory', name: 'Leave History', icon: History, color: 'bg-teal-500' },
+                { id: 'leaveStatus', name: 'Leave Status', icon: Eye, color: 'bg-cyan-500' },
+                { id: 'grades', name: 'Grades', icon: Award, color: 'bg-yellow-500' },
+                { id: 'paymentHistory', name: 'Payment History', icon: CreditCard, color: 'bg-pink-500' },
+                { id: 'proctorDetails', name: 'Proctor Details', icon: User, color: 'bg-slate-500' },
+                { id: 'gradeHistory', name: 'Grade History', icon: BookText, color: 'bg-violet-500' },
+                { id: 'counsellingRank', name: 'Counselling Rank', icon: Award, color: 'bg-amber-500' },
+                { id: 'facultyInfo', name: 'Faculty Search', icon: Users, color: 'bg-emerald-500', interactive: true },
+                { id: 'academicCalendar', name: 'Academic Calendar', icon: Calendar, color: 'bg-rose-500', interactive: true }
+            ];
+
+            const fetchData = async (functionId) => {
+                setLoading(true);
+                setError(null);
+                setData(null);
+                
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `get ${functionId}`,
+                            sessionId
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.data) {
+                        setData(result.data[functionId] || result.data);
+                        setLastUpdated(new Date());
+                    } else {
+                        setError('No data received');
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleFunctionClick = (func) => {
+                setSelectedFunction(func.id);
+                setError(null);
+                
+                if (func.interactive) {
+                    setData(null);
+                    setFacultySearch('');
+                    setFacultyResults(null);
+                    
+                    if (func.id === 'academicCalendar') {
+                        fetchData('academicCalendar');
+                    }
+                } else {
+                    fetchData(func.id);
+                }
+            };
+
+            const handleFacultySearch = async () => {
+                if (facultySearch.length < 3) {
+                    setError('Please enter at least 3 characters');
+                    return;
+                }
+                
+                setLoading(true);
+                setError(null);
+                
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `Find faculty ${facultySearch}`,
+                            sessionId
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.data?.facultyInfo) {
+                        setFacultyResults(result.data.facultyInfo);
+                        setData(result.data.facultyInfo);
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogout = async () => {
+                try {
+                    await fetch('/api/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId })
+                    });
+                    localStorage.removeItem('sessionId');
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            };
+
+            const copyToClipboard = (text) => {
+                navigator.clipboard.writeText(text);
+                alert('Copied to clipboard!');
+            };
+
+            const renderCGPA = (cgpaData) => (
+                React.createElement('div', { className: "space-y-4" }, [
+                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
+                        React.createElement('h2', { className: "text-2xl font-bold" }, "CGPA & Credits Status"),
+                        React.createElement('button', {
+                            onClick: () => copyToClipboard(JSON.stringify(cgpaData, null, 2)),
+                            className: "p-2 hover:bg-gray-100 rounded"
+                        }, React.createElement(Copy))
+                    ]),
+                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4", key: 'grid' },
+                        Object.entries(cgpaData).map(([key, value]) =>
+                            React.createElement('div', {
+                                key: key,
+                                className: "bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200"
+                            }, [
+                                React.createElement('div', { className: "text-sm text-gray-600 mb-1", key: 'label' }, key),
+                                React.createElement('div', { className: "text-2xl font-bold text-blue-900", key: 'value' }, value)
+                            ])
+                        )
+                    )
+                ])
+            );
+
+            const renderAttendance = (attendanceData) => (
+                React.createElement('div', { className: "space-y-4" }, [
+                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
+                        React.createElement('h2', { className: "text-2xl font-bold" }, "Attendance Report"),
+                        React.createElement('button', {
+                            onClick: () => copyToClipboard(JSON.stringify(attendanceData, null, 2)),
+                            className: "p-2 hover:bg-gray-100 rounded"
+                        }, React.createElement(Copy))
+                    ]),
+                    React.createElement('div', { className: "overflow-x-auto", key: 'table' },
+                        React.createElement('table', { className: "w-full border-collapse bg-white rounded-lg overflow-hidden shadow" }, [
+                            React.createElement('thead', { className: "bg-gradient-to-r from-green-500 to-emerald-500 text-white", key: 'thead' },
+                                React.createElement('tr', {}, [
+                                    React.createElement('th', { className: "p-3 text-left", key: 'course' }, "Course"),
+                                    React.createElement('th', { className: "p-3 text-left", key: 'attended' }, "Attended/Total"),
+                                    React.createElement('th', { className: "p-3 text-left", key: 'pct' }, "Percentage"),
+                                    React.createElement('th', { className: "p-3 text-left", key: 'status' }, "Status"),
+                                    React.createElement('th', { className: "p-3 text-left", key: 'action' }, "Action Needed")
+                                ])
+                            ),
+                            React.createElement('tbody', { key: 'tbody' },
+                                attendanceData.map((course, idx) =>
+                                    React.createElement('tr', {
+                                        key: idx,
+                                        className: `border-b ${
+                                            course.alertStatus === 'danger' ? 'bg-red-50' :
+                                            course.alertStatus === 'caution' ? 'bg-yellow-50' : 'bg-green-50'
+                                        } hover:bg-opacity-75 transition-colors`
+                                    }, [
+                                        React.createElement('td', { className: "p-3 font-medium", key: 'course' }, course.courseDetail),
+                                        React.createElement('td', { className: "p-3", key: 'attended' }, `${course.attendedClasses}/${course.totalClasses}`),
+                                        React.createElement('td', { className: "p-3 font-bold", key: 'pct' }, `${course.attendancePercentage}%`),
+                                        React.createElement('td', { className: "p-3", key: 'status' },
+                                            course.alertStatus === 'danger' ? '🔴' : course.alertStatus === 'caution' ? '⚠️' : '✅'
+                                        ),
+                                        React.createElement('td', { className: "p-3 text-sm", key: 'msg' }, course.alertMessage)
+                                    ])
+                                )
+                            )
+                        ])
+                    )
+                ])
+            );
+
+            const renderContent = () => {
+                if (loading) {
+                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
+                        React.createElement('div', { className: "text-center" }, [
+                            React.createElement(Loader2, { key: 'spinner' }),
+                            React.createElement('p', { className: "text-gray-600 mt-4", key: 'text' }, "Loading data...")
+                        ])
+                    );
+                }
+
+                if (error) {
+                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
+                        React.createElement('div', { className: "text-center bg-red-50 p-6 rounded-lg border border-red-200" }, [
+                            React.createElement(AlertCircle, { key: 'icon', className: "mx-auto mb-4 text-red-600" }),
+                            React.createElement('p', { className: "text-red-600 font-semibold mb-2", key: 'title' }, "Error"),
+                            React.createElement('p', { className: "text-gray-700 mb-4", key: 'msg' }, error),
+                            React.createElement('button', {
+                                onClick: () => selectedFunction && handleFunctionClick(functions.find(f => f.id === selectedFunction)),
+                                className: "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700",
+                                key: 'retry'
+                            }, "Try Again")
+                        ])
+                    );
+                }
+
+                if (!selectedFunction) {
+                    return React.createElement('div', { className: "flex items-center justify-center h-full" },
+                        React.createElement('div', { className: "text-center" }, [
+                            React.createElement(GraduationCap, { key: 'icon', style: { width: '64px', height: '64px', margin: '0 auto 16px', color: '#9ca3af' } }),
+                            React.createElement('h2', { className: "text-2xl font-bold text-gray-700 mb-2", key: 'title' }, "Welcome to VTOP Hub"),
+                            React.createElement('p', { className: "text-gray-600", key: 'subtitle' }, "Select a function from the sidebar to view your data")
+                        ])
+                    );
+                }
+
+                if (!data) return null;
+
+                // Render based on function
+                if (selectedFunction === 'cgpa') return renderCGPA(data);
+                if (selectedFunction === 'attendance') return renderAttendance(data);
+
+                // Generic render for other functions
+                return React.createElement('div', { className: "space-y-4" }, [
+                    React.createElement('div', { className: "flex items-center justify-between mb-4", key: 'header' }, [
+                        React.createElement('h2', { className: "text-2xl font-bold capitalize", key: 'title' },
+                            selectedFunction.replace(/([A-Z])/g, ' $1').trim()
+                        ),
+                        React.createElement('button', {
+                            onClick: () => copyToClipboard(JSON.stringify(data, null, 2)),
+                            className: "p-2 hover:bg-gray-100 rounded",
+                            key: 'copy'
+                        }, React.createElement(Copy))
+                    ]),
+                    React.createElement('pre', {
+                        className: "bg-gray-50 p-4 rounded-lg overflow-auto max-h-96 text-sm",
+                        key: 'data'
+                    }, JSON.stringify(data, null, 2))
+                ]);
+            };
+
+            return React.createElement('div', { className: "h-screen flex bg-gray-50" }, [
+                // Sidebar
+                React.createElement('div', { className: "w-64 bg-white border-r border-gray-200 overflow-y-auto flex flex-col", key: 'sidebar' }, [
+                    React.createElement('div', { className: "p-4 border-b border-gray-200", key: 'header' }, [
+                        React.createElement('div', { className: "flex items-center gap-2 mb-2" }, [
+                            React.createElement(GraduationCap, { key: 'icon', style: { color: '#2563eb' } }),
+                            React.createElement('h1', { className: "font-bold text-lg", key: 'title' }, "VTOP Hub")
+                        ]),
+                        React.createElement('p', { className: "text-xs text-gray-600" }, "Direct Data Access")
+                    ]),
+                    
+                    React.createElement('div', { className: "p-2 flex-1 overflow-y-auto", key: 'functions' },
+                        functions.map((func) => {
+                            const Icon = func.icon;
+                            return React.createElement('button', {
+                                key: func.id,
+                                onClick: () => handleFunctionClick(func),
+                                className: `w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${
+                                    selectedFunction === func.id
+                                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                }`
+                            }, [
+                                React.createElement('div', {
+                                    className: `${func.color} p-2 rounded text-white`,
+                                    key: 'icon'
+                                }, React.createElement(Icon)),
+                                React.createElement('span', { className: "text-sm", key: 'name' }, func.name)
+                            ]);
+                        })
+                    ),
+                    
+                    React.createElement('div', { className: "p-4 border-t border-gray-200", key: 'footer' },
+                        React.createElement('button', {
+                            onClick: handleLogout,
+                            className: "w-full flex items-center gap-2 p-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        }, [
+                            React.createElement(LogOut, { key: 'icon' }),
+                            React.createElement('span', { className: "text-sm font-semibold", key: 'text' }, "Logout")
+                        ])
+                    )
+                ]),
+
+                // Main Content
+                React.createElement('div', { className: "flex-1 overflow-y-auto", key: 'content' },
+                    React.createElement('div', { className: "p-6" }, [
+                        selectedFunction && lastUpdated && React.createElement('div', {
+                            className: "mb-4 flex items-center justify-between",
+                            key: 'meta'
+                        }, [
+                            React.createElement('p', { className: "text-sm text-gray-600", key: 'time' },
+                                `Last updated: ${lastUpdated.toLocaleTimeString()}`
+                            ),
+                            React.createElement('button', {
+                                onClick: () => handleFunctionClick(functions.find(f => f.id === selectedFunction)),
+                                className: "flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg",
+                                key: 'refresh'
+                            }, [
+                                React.createElement(RefreshCw, { key: 'icon' }),
+                                React.createElement('span', { key: 'text' }, "Refresh")
+                            ])
+                        ]),
+                        renderContent()
+                    ])
+                )
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(VTOPHub), document.getElementById('root'));
+    </script>
+</body>
+</html>

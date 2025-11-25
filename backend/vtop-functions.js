@@ -1909,7 +1909,68 @@ async function getLeaveStatus(authData, session, sessionId) {
     throw error;
   }
 }
-
+async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
+  try {
+    console.log(`[${sessionId}] Fetching Faculty Details for empId: ${empId}`);
+    const client = getClient(sessionId);
+    
+    const detailsRes = await client.post(
+      'https://vtop.vit.ac.in/vtop/hrms/EmployeeSearch1ForStudent',
+      new URLSearchParams({
+        _csrf: authData.csrfToken,
+        authorizedID: authData.authorizedID,
+        x: new Date().toUTCString(),
+        empId: empId
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': 'https://vtop.vit.ac.in/vtop/hrms/employeeSearchForStudent',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }
+    );
+    
+    const $ = cheerio.load(detailsRes.data);
+    const details = {};
+    
+    $('table.table-bordered').first().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const label = $(cells[0]).find('b').text().trim();
+        const value = $(cells[1]).text().trim();
+        
+        if (label && value && !label.includes('Image')) {
+          details[label] = value;
+        }
+      }
+    });
+    
+    // Extract open hours
+    const openHours = [];
+    $('table.table-bordered').last().find('tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const day = $(cells[0]).text().trim();
+        const timing = $(cells[1]).text().trim();
+        if (day && timing && day !== 'Week Day') {
+          openHours.push({ day, timing });
+        }
+      }
+    });
+    
+    const facultyData = {
+      details,
+      openHours
+    };
+    
+    console.log(`[${sessionId}] Faculty details fetched`);
+    return facultyData;
+  } catch (error) {
+    console.error(`[${sessionId}] Faculty Details fetch error:`, error.message);
+    throw error;
+  }
+}
 module.exports = {
   getCGPA,
   getAttendance,
@@ -1925,6 +1986,7 @@ module.exports = {
   getGradeHistory,
   getCounsellingRank,
   getFacultyInfo,
+   getFacultyDetailsByEmpId,
   getAcademicCalendar,
   getLeaveStatus
 };

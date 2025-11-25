@@ -417,7 +417,25 @@
                                             React.createElement('p', { className: "text-sm text-gray-600" }, "Access past exam papers from VIT courses")
                                         ])
                                     ])
-                                ])
+                                ]),
+                                // Replace your Direct Hub button with this:
+React.createElement('button', {
+    onClick: () => {
+    setAuthMode('custom');
+    localStorage.setItem('redirectToHub', 'true');
+}, // Changed from window.location.href
+    className: "w-full p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left group"
+}, [
+    React.createElement('div', { className: "flex items-center space-x-3" }, [
+        React.createElement('div', { 
+            className: "w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition-colors"
+        }, React.createElement(GraduationCap, { className: "w-6 h-6 text-indigo-600" })),
+        React.createElement('div', { className: "flex-1" }, [
+            React.createElement('h3', { className: "font-semibold text-gray-900 mb-1" }, "Direct Data Hub"),
+            React.createElement('p', { className: "text-sm text-gray-600" }, "Instant access to all your VTOP data without AI chat - perfect for quick lookups")
+        ])
+    ])
+])
                             ])
                         ])
                     ])
@@ -556,68 +574,76 @@
                 scrollToBottom();
             }, [messages]);
 
-            const handleLogin = async (loginData) => {
-                setLoginStatus('logging');
-                setIsLoading(true);
+const handleLogin = async (loginData) => {
+    setLoginStatus('logging');
+    setIsLoading(true);
+    
+    const welcomeMessage = loginData.useDemo ? 
+        '🔐 Connecting to VTOP and fetching live academic data...' :
+        '🔐 Logging into VTOP with your credentials...';
+
+    setMessages([{
+        id: Date.now(),
+        type: 'system',
+        content: welcomeMessage,
+        timestamp: new Date()
+    }]);
+
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...loginData, sessionId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+    setIsLoggedIn(true);
+    setIsDemo(result.isDemo);
+    setLoginStatus('success');
+    
+    // Check if should redirect to hub
+    const shouldRedirectToHub = localStorage.getItem('redirectToHub');
+    if (shouldRedirectToHub === 'true') {
+        localStorage.removeItem('redirectToHub');
+        window.location.href = '/hub.html';
+        return;
+    }
+            
+            setShowLoginForm(false);
+            
+            const successMessage = result.isDemo ? 
+                '✅ Connected to VTOP using demo credentials! You\'re viewing real-time data fetched from an actual student account. Ask me about CGPA, attendance, marks, or assignments.' :
+                '✅ Successfully logged into VTOP! You can now ask me about your CGPA, attendance, marks, or assignments,etc';
                 
-                const welcomeMessage = loginData.useDemo ? 
-                    '🔐 Connecting to VTOP and fetching live academic data...' :
-                    '🔐 Logging into VTOP with your credentials...';
-
-                setMessages([{
-                    id: Date.now(),
-                    type: 'system',
-                    content: welcomeMessage,
-                    timestamp: new Date()
-                }]);
-
-                try {
-                    const response = await fetch('/api/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...loginData, sessionId })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        setIsLoggedIn(true);
-                        setIsDemo(result.isDemo);
-                        setLoginStatus('success');
-                        setShowLoginForm(false);
-                        
-                        const successMessage = result.isDemo ? 
-                            '✅ Connected to VTOP using demo credentials! You\'re viewing real-time data fetched from an actual student account. Ask me about CGPA, attendance, marks, or assignments.' :
-                            '✅ Successfully logged into VTOP! You can now ask me about your CGPA, attendance, marks, or assignments,etc';
-                            
-                        setMessages(prev => [...prev, {
-                            id: Date.now() + 1,
-                            type: 'system',
-                            content: successMessage,
-                            timestamp: new Date()
-                        }]);
-                    } else {
-                        setLoginStatus('failed');
-                        setMessages(prev => [...prev, {
-                            id: Date.now() + 1,
-                            type: 'system',
-                            content: '❌ Login failed. Please check your credentials and try again.',
-                            timestamp: new Date()
-                        }]);
-                    }
-                } catch (error) {
-                    setLoginStatus('failed');
-                    setMessages(prev => [...prev, {
-                        id: Date.now() + 1,
-                        type: 'system',
-                        content: '❌ Error connecting to VTOP backend. Please try again later.',
-                        timestamp: new Date()
-                    }]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                type: 'system',
+                content: successMessage,
+                timestamp: new Date()
+            }]);
+        } else {
+            setLoginStatus('failed');
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                type: 'system',
+                content: '❌ Login failed. Please check your credentials and try again.',
+                timestamp: new Date()
+            }]);
+        }
+    } catch (error) {
+        setLoginStatus('failed');
+        setMessages(prev => [...prev, {
+            id: Date.now() + 1,
+            type: 'system',
+            content: '❌ Error connecting to VTOP backend. Please try again later.',
+            timestamp: new Date()
+        }]);
+    } finally {
+        setIsLoading(false);
+    }
+};
             const handleLogout = async () => {
                 try {
                     await fetch('/api/logout', { 
