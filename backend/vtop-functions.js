@@ -1613,7 +1613,7 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
   }
 }
 
-async function getAcademicCalendar(authData, session, sessionId, semesterId = 'VL20252601') {
+async function getAcademicCalendar(authData, session, sessionId, semesterId = 'VL20252605') {
   try {
     if (isCacheValid(session, 'academicCalendar')) {
       console.log(`[${sessionId}] Cache hit: academicCalendar`);
