@@ -1686,11 +1686,11 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = 'V
     
     // Step 4: Fetch calendar for each month - ALL uses 'ALL' classGroup for general semester events
     const months = [
-      { name: 'JULY', date: '01-JUL-2025', classGroup: 'ALL' },
-      { name: 'AUGUST', date: '01-AUG-2025', classGroup: 'ALL' },
-      { name: 'SEPTEMBER', date: '01-SEP-2025', classGroup: 'ALL' },
-      { name: 'OCTOBER', date: '01-OCT-2025', classGroup: 'ALL' },
-      { name: 'NOVEMBER', date: '01-NOV-2025', classGroup: 'ALL' }
+      { name: 'DECEMBER', date: '01-DEC-2025', classGroup: 'ALL' },
+      { name: 'JANUARY', date: '01-JAN-2026', classGroup: 'ALL' },
+      { name: 'FEBRUARY', date: '01-FEB-2026', classGroup: 'ALL' },
+      { name: 'MARCH', date: '01-MAR-2026', classGroup: 'ALL' },
+      { name: 'APRIL', date: '01-APR-2026', classGroup: 'ALL' }
     ];
     
     const calendar = {};
