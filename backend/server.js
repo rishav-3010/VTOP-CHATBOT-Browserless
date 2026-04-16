@@ -737,7 +737,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             break;
           case 'getfacultyinfo':
             // Use Gemini to extract the faculty name intelligently
-            let facultyName = await extractFacultyName(message, config, genAI);
+            let facultyName = await extractFacultyName(message);
 
             if (!facultyName || facultyName.length < 3) {
               res.write("Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Where is Samridhi Sarkar's cabin?'");
