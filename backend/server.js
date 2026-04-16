@@ -37,36 +37,36 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "https://cdn.tailwindcss.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'"],
-            frameAncestors: ["'none'"],
-            upgradeInsecureRequests: []
-        }
-    },
-    crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "https://cdn.tailwindcss.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  crossOriginEmbedderPolicy: false
 }));
 
 // Rate limiting for API endpoints
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const chatLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 20, // limit each IP to 20 chat messages per minute
-    message: 'Too many chat messages, please slow down.',
-    standardHeaders: true,
-    legacyHeaders: false,
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 20, // limit each IP to 20 chat messages per minute
+  message: 'Too many chat messages, please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use(cors());
@@ -78,9 +78,9 @@ app.use('/api/', apiLimiter);
 
 // Input sanitization helper
 const sanitizeInput = (input) => {
-    if (typeof input !== 'string') return '';
-    // Remove HTML tags and trim
-    return input.replace(/<[^>]*>/g, '').trim().substring(0, 5000);
+  if (typeof input !== 'string') return '';
+  // Remove HTML tags and trim
+  return input.replace(/<[^>]*>/g, '').trim().substring(0, 5000);
 };
 
 const demoUsername = process.env.VTOP_USERNAME;
@@ -93,9 +93,9 @@ let keysSource = process.env.GEMINI_KEYS || process.env.GEMINI_API_KEY || "";
 const GEMINI_KEYS = keysSource ? keysSource.split(',').map(k => k.trim()).filter(k => k.length > 0) : [];
 
 if (GEMINI_KEYS.length === 0) {
-    console.warn("⚠️ No GEMINI_KEYS or GEMINI_API_KEY found in environment variables.");
+  console.warn("⚠️ No GEMINI_KEYS or GEMINI_API_KEY found in environment variables.");
 } else {
-    console.log(`✅ Loaded ${GEMINI_KEYS.length} Gemini API keys.`);
+  console.log(`✅ Loaded ${GEMINI_KEYS.length} Gemini API keys.`);
 }
 
 // Separate rotation indices for each model tier (Round-Robin)
@@ -105,68 +105,68 @@ let indexFlash = 0;
 // Blocked keys are now stored as strings: "KEY_VALUE::MODEL_NAME"
 const blockedKeys = new Set();
 const MODELS = {
-    LITE: "gemini-2.5-flash-lite",
-    FLASH: "gemini-2.5-flash"
+  LITE: "gemini-2.5-flash-lite",
+  FLASH: "gemini-2.5-flash"
 };
 
 function getBestSessionConfig() {
-    if (GEMINI_KEYS.length === 0) {
-        if (process.env.GEMINI_API_KEY) return { key: process.env.GEMINI_API_KEY, model: MODELS.LITE };
-        return null;
+  if (GEMINI_KEYS.length === 0) {
+    if (process.env.GEMINI_API_KEY) return { key: process.env.GEMINI_API_KEY, model: MODELS.LITE };
+    return null;
+  }
+
+  // TIER 1: Try to find a valid key for FLASH LITE
+  for (let i = 0; i < GEMINI_KEYS.length; i++) {
+    let idx = (indexLite + i) % GEMINI_KEYS.length;
+    let key = GEMINI_KEYS[idx];
+    let blockTag = `${key}::${MODELS.LITE}`;
+
+    if (!blockedKeys.has(blockTag)) {
+      indexLite = (idx + 1) % GEMINI_KEYS.length; // Rotate for next user
+      return { key: key, model: MODELS.LITE };
     }
+  }
 
-    // TIER 1: Try to find a valid key for FLASH LITE
-    for (let i = 0; i < GEMINI_KEYS.length; i++) {
-        let idx = (indexLite + i) % GEMINI_KEYS.length;
-        let key = GEMINI_KEYS[idx];
-        let blockTag = `${key}::${MODELS.LITE}`;
+  // TIER 2: If all LITE keys are blocked, try FLASH (Standard)
+  // Note: Quotas are separate, so a key blocked on Lite might work on Flash
+  for (let i = 0; i < GEMINI_KEYS.length; i++) {
+    let idx = (indexFlash + i) % GEMINI_KEYS.length;
+    let key = GEMINI_KEYS[idx];
+    let blockTag = `${key}::${MODELS.FLASH}`;
 
-        if (!blockedKeys.has(blockTag)) {
-            indexLite = (idx + 1) % GEMINI_KEYS.length; // Rotate for next user
-            return { key: key, model: MODELS.LITE };
-        }
+    if (!blockedKeys.has(blockTag)) {
+      indexFlash = (idx + 1) % GEMINI_KEYS.length; // Rotate for next user
+      return { key: key, model: MODELS.FLASH };
     }
+  }
 
-    // TIER 2: If all LITE keys are blocked, try FLASH (Standard)
-    // Note: Quotas are separate, so a key blocked on Lite might work on Flash
-    for (let i = 0; i < GEMINI_KEYS.length; i++) {
-        let idx = (indexFlash + i) % GEMINI_KEYS.length;
-        let key = GEMINI_KEYS[idx];
-        let blockTag = `${key}::${MODELS.FLASH}`;
-
-        if (!blockedKeys.has(blockTag)) {
-            indexFlash = (idx + 1) % GEMINI_KEYS.length; // Rotate for next user
-            return { key: key, model: MODELS.FLASH };
-        }
-    }
-
-    console.warn("⚠️ ALL API KEYS EXHAUSTED on BOTH tiers.");
-    return null; // Total system failure (All keys on all models are dead)
+  console.warn("⚠️ ALL API KEYS EXHAUSTED on BOTH tiers.");
+  return null; // Total system failure (All keys on all models are dead)
 }
 
 function blockKey(key, model, errorMsg = "") {
-    if (!key || !model) return;
-    
-    // Create unique tag for Key + Model combo
-    const blockTag = `${key}::${model}`;
-    blockedKeys.add(blockTag);
+  if (!key || !model) return;
 
-    // Check blockage type
-    const isDailyLimit = errorMsg && (
-        errorMsg.toLowerCase().includes("day") || 
-        errorMsg.toLowerCase().includes("daily") ||
-        errorMsg.includes("GenerateRequestsPerDay")
-    );
-                         
-    const duration = isDailyLimit ? 24 * 60 * 60 * 1000 : 60000; 
-    const type = isDailyLimit ? "DAILY LIMIT (24h)" : "RPM LIMIT (1m)";
+  // Create unique tag for Key + Model combo
+  const blockTag = `${key}::${model}`;
+  blockedKeys.add(blockTag);
 
-    console.warn(`⛔ Blocked Key on [${model}] due to ${type}.`);
-    
-    setTimeout(() => {
-        blockedKeys.delete(blockTag);
-        console.log(`🟢 Key unblocked for [${model}]`);
-    }, duration);
+  // Check blockage type
+  const isDailyLimit = errorMsg && (
+    errorMsg.toLowerCase().includes("day") ||
+    errorMsg.toLowerCase().includes("daily") ||
+    errorMsg.includes("GenerateRequestsPerDay")
+  );
+
+  const duration = isDailyLimit ? 24 * 60 * 60 * 1000 : 60000;
+  const type = isDailyLimit ? "DAILY LIMIT (24h)" : "RPM LIMIT (1m)";
+
+  console.warn(`⛔ Blocked Key on [${model}] due to ${type}.`);
+
+  setTimeout(() => {
+    blockedKeys.delete(blockTag);
+    console.log(`🟢 Key unblocked for [${model}]`);
+  }, duration);
 }
 // --------------------------------------
 
@@ -180,22 +180,22 @@ function createSession() {
     conversationHistory: [],
     currentCredentials: {},
     cache: {
-  cgpa: { data: null, timestamp: 0 },
-  attendance: { data: null, timestamp: 0 },
-  marks: { data: null, timestamp: 0 },
-  assignments: { data: null, timestamp: 0 },
-  loginHistory: { data: null, timestamp: 0 },
-  examSchedule: { data: null, timestamp: 0 },
-  timetable: { data: null, timestamp: 0 },
-  leaveHistory: { data: null, timestamp: 0 },
-  grades: { data: null, timestamp: 0 },
-  paymentHistory: { data: null, timestamp: 0 },
-  proctorDetails: { data: null, timestamp: 0 },
-  gradeHistory: { data: null, timestamp: 0 },
-  counsellingRank: { data: null, timestamp: 0 },
-  academicCalendar: { data: null, timestamp: 0 },
-  leaveStatus: { data: null, timestamp: 0 }
-  }
+      cgpa: { data: null, timestamp: 0 },
+      attendance: { data: null, timestamp: 0 },
+      marks: { data: null, timestamp: 0 },
+      assignments: { data: null, timestamp: 0 },
+      loginHistory: { data: null, timestamp: 0 },
+      examSchedule: { data: null, timestamp: 0 },
+      timetable: { data: null, timestamp: 0 },
+      leaveHistory: { data: null, timestamp: 0 },
+      grades: { data: null, timestamp: 0 },
+      paymentHistory: { data: null, timestamp: 0 },
+      proctorDetails: { data: null, timestamp: 0 },
+      gradeHistory: { data: null, timestamp: 0 },
+      counsellingRank: { data: null, timestamp: 0 },
+      academicCalendar: { data: null, timestamp: 0 },
+      leaveStatus: { data: null, timestamp: 0 }
+    }
   };
   return sessionId;
 }
@@ -204,25 +204,65 @@ function getSession(sessionId) {
   return sessions[sessionId] || null;
 }
 
-// Intent recognition - NOW RETURNS ARRAY OF INTENTS
-async function recognizeIntent(message, session, retryCount = 0) {
+async function extractFacultyName(message, retryCount = 0) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
-  
+
   const config = getBestSessionConfig();
-  if (!config) {
-     console.error("❌ All API keys exhausted (Both Tiers). Returning general intent.");
-     return ['general'];
-  }
-  
+  if (!config) return null;
+
   const { key, model: modelName } = config;
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({ model: modelName });
-  
+
+  const prompt = `Extract only the faculty/teacher/professor name from this message. Return ONLY the name, nothing else. If no name is found, return "UNKNOWN".
+
+Examples:
+- "show me info about Yokesh Duraisamy" → "Yokesh Duraisamy"
+- "where is samridhi sarkar's cabin" → "Samridhi Sarkar"
+- "can you find details of rajesh kumar sir" → "Rajesh Kumar"
+- "what are the open hours for Dr. Priya" → "Priya"
+- "faculty search" → "UNKNOWN"
+
+Message: "${message}"`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const extracted = result.response.text().trim();
+
+    if (extracted === 'UNKNOWN' || extracted.length < 3) return null;
+
+    console.log(`[Faculty Name Extraction] "${message}" → "${extracted}"`);
+    return extracted;
+
+  } catch (error) {
+    if ((error.status === 429 || error.message?.includes('quota')) && retryCount < GEMINI_KEYS.length) {
+      blockKey(key, modelName, error.message);
+      return extractFacultyName(message, retryCount + 1);
+    }
+    console.error('Faculty name extraction failed:', error.message);
+    return null;
+  }
+}
+
+// Intent recognition - NOW RETURNS ARRAY OF INTENTS
+async function recognizeIntent(message, session, retryCount = 0) {
+  const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+  const config = getBestSessionConfig();
+  if (!config) {
+    console.error("❌ All API keys exhausted (Both Tiers). Returning general intent.");
+    return ['general'];
+  }
+
+  const { key, model: modelName } = config;
+  const genAI = new GoogleGenerativeAI(key);
+  const model = genAI.getGenerativeModel({ model: modelName });
+
   const recentHistory = session.conversationHistory.map(msg => ({
     role: msg.role,
     parts: [{ text: msg.content }]
   }));
-  
+
   const prompt = `
   You are an advanced intent classifier for a VTOP assistant.
   Analyze the user's message and return ALL intents they're asking for.
@@ -284,34 +324,34 @@ Examples:
         }
       ]
     });
-    
+
     const response = result.response.text().trim().toLowerCase();
-    
+
     // Parse comma-separated intents
     const intents = response.split(',').map(i => i.trim()).filter(i => i);
-    
+
     console.log(`[Multi-Intent] Detected: ${intents.join(', ')}`);
-    
+
     return intents.length > 0 ? intents : ['general'];
   } catch (error) {
     if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
-       const isDaily = error.message?.toLowerCase().includes("daily") || error.message?.includes("GenerateRequestsPerDay");
-       const type = isDaily ? "DAILY LIMIT" : "RPM LIMIT";
-       
-       // Only log full error if it's NOT a standard 429 (to reduce spam)
-       if (!isDaily) console.warn(`⚠️ ${type} (429) during intent recognition on [${modelName}]. Rotating...`);
+      const isDaily = error.message?.toLowerCase().includes("daily") || error.message?.includes("GenerateRequestsPerDay");
+      const type = isDaily ? "DAILY LIMIT" : "RPM LIMIT";
 
-       blockKey(key, modelName, error.message); // Block specific Key+Model combo
+      // Only log full error if it's NOT a standard 429 (to reduce spam)
+      if (!isDaily) console.warn(`⚠️ ${type} (429) during intent recognition on [${modelName}]. Rotating...`);
 
-       if (retryCount < GEMINI_KEYS.length * 2) {
-         return recognizeIntent(message, session, retryCount + 1); 
-       }
-       console.warn("⚠️ ALL API KEYS EXHAUSTED for recognizeIntent - returning general intent.");
+      blockKey(key, modelName, error.message); // Block specific Key+Model combo
+
+      if (retryCount < GEMINI_KEYS.length * 2) {
+        return recognizeIntent(message, session, retryCount + 1);
+      }
+      console.warn("⚠️ ALL API KEYS EXHAUSTED for recognizeIntent - returning general intent.");
     } else if (error.message?.includes('503') || error.message?.includes('overloaded')) {
       console.warn('Model overloaded (503) during intent recognition, rotating key...');
-       if (retryCount < GEMINI_KEYS.length) {
-         return recognizeIntent(message, session, retryCount + 1); 
-       }
+      if (retryCount < GEMINI_KEYS.length) {
+        return recognizeIntent(message, session, retryCount + 1);
+      }
     } else {
       console.error('Error in intent recognition:', error.message || error);
     }
@@ -351,32 +391,32 @@ Answer warmly and guide them on what you can help with.
 // ===== FIXED STREAMING RESPONSE GENERATION WITH RETRY LOGIC =====
 async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
-  
+
   const config = getBestSessionConfig();
   if (!config) {
     res.write("I'm having trouble with my API keys right now (All keys exhausted/blocked). Please tell the developer.");
     res.end();
     return "Error: No API keys available";
   }
-  
+
   const { key, model: modelName } = config;
   const genAI = new GoogleGenerativeAI(key);
-  
+
   // Inject today's date into system instruction
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const dynamicSystemInstruction = `${VTOP_SYSTEM_INSTRUCTION}\n\nToday is ${dateStr}. Use this for calendar, timetable, and relative time queries.`;
 
-  const model = genAI.getGenerativeModel({ 
+  const model = genAI.getGenerativeModel({
     model: modelName,
     systemInstruction: dynamicSystemInstruction
   });
-  
+
   const recentHistory = session.conversationHistory.map(msg => ({
     role: msg.role,
     parts: [{ text: msg.content }]
   }));
-  
+
   try {
     const result = await model.generateContentStream({
       contents: [
@@ -384,48 +424,48 @@ async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
         { role: 'user', parts: [{ text: prompt }] }
       ]
     });
-    
+
     let fullText = "";
     for await (const chunk of result.stream) {
       const chunkText = chunk.text();
       fullText += chunkText;
       res.write(chunkText);
     }
-    
+
     return fullText; // Return for conversation history update
-    
+
   } catch (error) {
     // Handle 429 errors with retry logic (same as old generateResponse)
     if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
       const isDaily = error.message?.toLowerCase().includes("daily") || error.message?.includes("GenerateRequestsPerDay");
       const type = isDaily ? "DAILY LIMIT" : "RPM LIMIT";
-      
+
       if (!isDaily) console.warn(`⚠️ ${type} (429) during streaming on [${modelName}]. Rotating...`);
-      
+
       blockKey(key, modelName, error.message);
-      
+
       // ✅ RETRY with fresh key (same logic as old code)
       if (retryCount < GEMINI_KEYS.length * 2) {
         return await generateStreamingResponse(prompt, session, res, retryCount + 1);
       }
-      
+
       // All keys exhausted
       console.warn("⚠️ ALL API KEYS EXHAUSTED for streaming response.");
       res.write("\n\nMy daily request limit has been reached (429). Please try again later.");
       res.end();
       return "Error: All API keys exhausted";
-      
+
     } else if (error.message?.includes('503') || error.message?.includes('overloaded')) {
       console.warn('Model overloaded (503) during streaming, rotating key...');
-      
+
       if (retryCount < GEMINI_KEYS.length) {
         return await generateStreamingResponse(prompt, session, res, retryCount + 1);
       }
-      
+
       res.write("\n\nThe AI model is currently overloaded. Please try again in a moment.");
       res.end();
       return "Error: Model overloaded";
-      
+
     } else {
       // Unknown error - let it bubble up
       console.error('Error in streaming generation:', error.message || error);
@@ -438,16 +478,16 @@ async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password, useDemo, sessionId, campus = 'vellore' } = req.body;
-    
+
     let session = getSession(sessionId);
-    
+
     // Always clear old session data on new login attempt
     // This fixes the issue where refreshing page but using same sessionId (from localStorage)
     // would keep old cache/credentials if the server wasn't restarted
     if (session) {
       delete sessions[sessionId];
     }
-    
+
     // Create fresh session
     sessions[sessionId] = {
       isLoggedIn: false,
@@ -472,9 +512,9 @@ app.post('/api/login', async (req, res) => {
       }
     };
     session = sessions[sessionId];
-    
+
     let loginUsername, loginPassword;
-    
+
     if (useDemo) {
       loginUsername = demoUsername;
       loginPassword = demoPassword;
@@ -486,9 +526,9 @@ app.post('/api/login', async (req, res) => {
       };
     } else {
       if (!username || !password) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Username and password required' 
+        return res.status(400).json({
+          success: false,
+          error: 'Username and password required'
         });
       }
       loginUsername = username;
@@ -503,7 +543,7 @@ app.post('/api/login', async (req, res) => {
 
     // Pass sessionId and campus to loginToVTOP
     const result = await loginToVTOP(loginUsername, loginPassword, sessionId, campus);
-    
+
     // Login result is now an object { success: boolean, error?: string }
     if (result && result.success) {
       session.isLoggedIn = true;
@@ -515,15 +555,15 @@ app.post('/api/login', async (req, res) => {
         }
       });
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         isDemo: session.currentCredentials.isDemo,
         message: 'Login successful',
         sessionId: sessionId
       });
     } else {
-      res.json({ 
-        success: false, 
+      res.json({
+        success: false,
         message: result.error || 'Login failed. Please check your credentials.'
       });
     }
@@ -538,28 +578,28 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   if (!req.body.message || typeof req.body.message !== 'string') {
     return res.status(400).json({ error: 'Invalid message format' });
   }
-  
+
   if (req.body.message.length > 5000) {
     return res.status(400).json({ error: 'Message too long (max 5000 characters)' });
   }
-  
+
   const message = sanitizeInput(req.body.message);
   const { sessionId } = req.body;
-  
+
   if (!message || message.length === 0) {
     return res.status(400).json({ error: 'Message cannot be empty' });
   }
-  
-  try {  
+
+  try {
     const session = getSession(sessionId);
-    
+
     // Inject ID for internal use
     if (session) session.id = sessionId;
 
     if (!session || !session.isLoggedIn) {
-      return res.json({ 
+      return res.json({
         response: "I'm not connected to VTOP right now. Please refresh the page to reconnect.",
-        data: null 
+        data: null
       });
     }
 
@@ -584,7 +624,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     if (needsMultipleData) {
       // PARALLEL EXECUTION of multiple functions
       const authData = await getAuthData(sessionId);
-      
+
       const promises = intents.map(async (intent) => {
         try {
           switch (intent) {
@@ -607,36 +647,36 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               allData.examSchedule = await getExamSchedule(authData, session, sessionId);
               break;
             case 'gettimetable':
-          allData.timetable = await getTimetable(authData, session, sessionId);
-          break;
+              allData.timetable = await getTimetable(authData, session, sessionId);
+              break;
             case 'getleavehistory':
-          allData.leaveHistory = await getLeaveHistory(authData, session, sessionId);
-          break;
-          case 'getleavestatus':
-          allData.leaveStatus = await getLeaveStatus(authData, session, sessionId);
-          break;
-        case 'getgrades':
-          allData.grades = await getGrades(authData, session, sessionId);
-          break;
-        case 'getpaymenthistory':
-          allData.paymentHistory = await getPaymentHistory(authData, session, sessionId);
-          break;
-        case 'getproctordetails':
-          allData.proctorDetails = await getProctorDetails(authData, session, sessionId);
-          break;
-        case 'getgradehistory':
-          allData.gradeHistory = await getGradeHistory(authData, session, sessionId);
-          break;
-        case 'getcounsellingrank':
-          allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
-          break;
-        case 'getfacultyinfo':
-          // Faculty info requires facultyName parameter - handle separately
-          console.log(`[${sessionId}] Faculty info requires name parameter`);
-          break;
-        case 'getacademiccalendar':
-          allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
-          break;
+              allData.leaveHistory = await getLeaveHistory(authData, session, sessionId);
+              break;
+            case 'getleavestatus':
+              allData.leaveStatus = await getLeaveStatus(authData, session, sessionId);
+              break;
+            case 'getgrades':
+              allData.grades = await getGrades(authData, session, sessionId);
+              break;
+            case 'getpaymenthistory':
+              allData.paymentHistory = await getPaymentHistory(authData, session, sessionId);
+              break;
+            case 'getproctordetails':
+              allData.proctorDetails = await getProctorDetails(authData, session, sessionId);
+              break;
+            case 'getgradehistory':
+              allData.gradeHistory = await getGradeHistory(authData, session, sessionId);
+              break;
+            case 'getcounsellingrank':
+              allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
+              break;
+            case 'getfacultyinfo':
+              // Faculty info requires facultyName parameter - handle separately
+              console.log(`[${sessionId}] Faculty info requires name parameter`);
+              break;
+            case 'getacademiccalendar':
+              allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
+              break;
           }
         } catch (error) {
           console.error(`[${sessionId}] Error fetching ${intent}:`, error.message);
@@ -645,12 +685,12 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
       // Wait for all data to be fetched in parallel
       await Promise.all(promises);
-      
+
     } else {
       // Single intent - fetch data
       const intent = intents[0];
       const authData = await getAuthData(sessionId);
-      
+
       try {
         switch (intent) {
           case 'getcgpa':
@@ -696,24 +736,11 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
             break;
           case 'getfacultyinfo':
-            let facultyName = message;
-            const phrasesToRemove = [
-              /^show\s+(me\s+)?/gi, /^find\s+(me\s+)?/gi, /^search\s+(for\s+)?/gi,
-              /^get\s+(me\s+)?/gi, /^fetch\s+(me\s+)?/gi, /^tell\s+me\s+about\s+/gi,
-              /^who\s+is\s+/gi, /^give\s+me\s+/gi, /^i\s+want\s+/gi,
-              /^can\s+you\s+(show|find|get|tell)\s+(me\s+)?/gi
-            ];
-            phrasesToRemove.forEach(pattern => { facultyName = facultyName.replace(pattern, ''); });
-            const keywordsToRemove = [
-              /\bfaculty\b/gi, /\bprofessor\b/gi, /\bteacher\b/gi, /\bsir\b/gi,
-              /\bmadam\b/gi, /\bma'am\b/gi, /\bmam\b/gi, /\binfo(rmation)?\b/gi,
-              /\bdetails?\b/gi, /\babout\b/gi, /\bfor\b/gi, /\bof\b/gi, /\bnamed\b/gi
-            ];
-            keywordsToRemove.forEach(pattern => { facultyName = facultyName.replace(pattern, ''); });
-            facultyName = facultyName.replace(/\?|!|\./g, '').replace(/\s+/g, ' ').trim();
-            
+            // Use Gemini to extract the faculty name intelligently
+            let facultyName = await extractFacultyName(message, config, genAI);
+
             if (!facultyName || facultyName.length < 3) {
-              res.write("Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Find faculty Rajesh Kumar'");
+              res.write("Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Where is Samridhi Sarkar's cabin?'");
               res.end();
               return;
             }
@@ -737,7 +764,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     if (needsMultipleData) {
       let dataContext = '';
       let promptSections = [];
-      
+
       if (allData.cgpa && intents.includes('getcgpa')) {
         dataContext += `\nCGPA Data: ${JSON.stringify(allData.cgpa, null, 2)}`;
         promptSections.push(`For CGPA: Generate a friendly, encouraging response about their CGPA. Keep it conversational and positive. Include the CGPA value and maybe a motivational comment.`);
@@ -788,10 +815,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       }
       if (allData.gradeHistory && intents.includes('getgradehistory')) {
         dataContext += `\nGrade History: ${JSON.stringify(allData.gradeHistory, null, 2)}`;
-        
+
         let gradeHistoryPrompt = `For Grade History: Show comprehensive academic report with grade distribution, CGPA, credits, curriculum progress, and recent courses table.`;
         if (!session.currentCredentials.isDemo) {
-            gradeHistoryPrompt += ` At the end, add: 📄 Want the complete official record? [Download Grade History PDF](/api/downloads/grade-history?sessionId=${session.id})`;
+          gradeHistoryPrompt += ` At the end, add: 📄 Want the complete official record? [Download Grade History PDF](/api/downloads/grade-history?sessionId=${session.id})`;
         }
         promptSections.push(gradeHistoryPrompt);
       }
@@ -814,14 +841,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       // Single intent prompt
       const intent = intents[0];
       const data = Object.values(allData)[0];
-      
+
       switch (intent) {
         case 'getcgpa':
           prompt = `The user asked: "${message}"\nTheir CGPA data is: ${JSON.stringify(data, null, 2)}\n\nGenerate a friendly, encouraging response about their CGPA. Keep it conversational and positive. Include the CGPA value and maybe a motivational comment.`;
           break;
-          
+
         case 'getattendance':
-      prompt = `
+          prompt = `
         The user asked: "${message}"
         Here's their attendance data: ${JSON.stringify(data, null, 2)}
         
@@ -844,10 +871,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         and if user is asking for particular subject like IoT or DS etc then show only that subject attendance not all subjects.
         and if user is asking for classes needed to reach 75% then include that in analysis part only not in table part.
       `;
-      break;
-          
+          break;
+
         case 'getassignments':
-      prompt = `
+          prompt = `
         The user asked: "${message}"
         Here's their assignments data: ${JSON.stringify(data, null, 2)}
         
@@ -870,10 +897,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         IMP: If user is asking for particular subject assignment deadline then show only that subject assignmnt deadline not all subjects.
         and if user is asking for particular subject like IoT or DS etc then show only that subject assignment deadline not all subjects.
       `;
-      break;
+          break;
 
         case 'getmarks':
-      prompt = `
+          prompt = `
         The user asked: "${message}"
         Here's their marks data: ${JSON.stringify(data, null, 2)}
         
@@ -905,7 +932,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         and if user is asking for particular subject like IoT or DS etc then show only that subject marks not all subjects.
         but definetly use markdown even if user is asking for single subject marks
       `;
-      break;
+          break;
 
         case 'getloginhistory':
           prompt = `The user asked: "${message}"\nHere's their login history data: ${JSON.stringify(data, null, 2)}\n\nFormat as a markdown table with columns:\n| Date | Time | IP Address | Status |`;
@@ -929,8 +956,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           `;
           break;
 
-          case 'gettimetable':
-      prompt = `
+        case 'gettimetable':
+          prompt = `
         The user asked: "${message}"
         Here's their timetable data: ${JSON.stringify(data, null, 2)}
         
@@ -960,14 +987,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         and if user is asking for specific day (e.g. "Monday", "Today", "Tomorrow") then show ONLY that day's schedule.
         and if user is asking for "next class", find the immediate next class based on current time and show only that.
       `;
-      break;
+          break;
 
         case 'getleavehistory':
           prompt = `The user asked: "${message}"\nHere's their leave history data: ${JSON.stringify(data, null, 2)}\n\nFormat as a markdown table with columns:\n| Place | Reason | Type | From → To | Status |\nUse emojis: ✅ for APPROVED, ❌ for CANCELLED, ⏳ for PENDING`;
           break;
 
-    case 'getgrades':
-      prompt = `
+        case 'getgrades':
+          prompt = `
         The user asked: "${message}"
         Here's their semester grades data: ${JSON.stringify(data, null, 2)}
         
@@ -990,10 +1017,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting (bold headers, emphasis).
       `;
-      break;
+          break;
 
-    case 'getpaymenthistory':
-      prompt = `
+        case 'getpaymenthistory':
+          prompt = `
         The user asked: "${message}"
         Here's their payment history: ${JSON.stringify(data, null, 2)}
         
@@ -1007,10 +1034,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting and include ₹ symbol for amounts.
       `;
-      break;
+          break;
 
-    case 'getproctordetails':
-      prompt = `
+        case 'getproctordetails':
+          prompt = `
         The user asked: "${message}"
         Here's their proctor details: ${JSON.stringify(data, null, 2)}
         
@@ -1025,16 +1052,16 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         Use emojis like 👨‍🏫 for name, 📧 for email, 📍 for cabin.
         Use markdown formatting for readability.
       `;
-      break;
+          break;
 
-    case 'getgradehistory':
-      let pdfPart = !session.currentCredentials.isDemo 
-        ? `
+        case 'getgradehistory':
+          let pdfPart = !session.currentCredentials.isDemo
+            ? `
         5. **PDF Download**:
            At the end, add a friendly line like "📄 Want the complete official record? [Download Grade History PDF](/api/downloads/grade-history?sessionId=${session.id})"`
-        : "";
+            : "";
 
-      prompt = `
+          prompt = `
         The user asked: "${message}"
         Here's their complete grade history: ${JSON.stringify(data, null, 2)}
         
@@ -1058,10 +1085,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting extensively.
       `;
-      break;
+          break;
 
-    case 'getcounsellingrank':
-      prompt = `
+        case 'getcounsellingrank':
+          prompt = `
         The user asked: "${message}"
         Here's their counselling rank details: ${JSON.stringify(data, null, 2)}
         
@@ -1075,10 +1102,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use emojis and markdown formatting for emphasis.
       `;
-      break;
+          break;
 
-    case 'getfacultyinfo':
-      prompt = `
+        case 'getfacultyinfo':
+          prompt = `
         The user asked: "${message}"
         Here's the faculty information: ${JSON.stringify(data, null, 2)}
         
@@ -1109,10 +1136,10 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting for readability and emojis for visual appeal.
       `;
-      break;
-      case 'getacademiccalendar':
-      const currentDate = new Date().toDateString();
-      prompt = `
+          break;
+        case 'getacademiccalendar':
+          const currentDate = new Date().toDateString();
+          prompt = `
         The user asked: "${message}"
         CURRENT REAL DATE: ${currentDate}
         Here's the academic calendar data: ${JSON.stringify(data, null, 2)}
@@ -1134,9 +1161,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting.
       `;
-      break;
-      case 'getleavestatus':
-      prompt = `
+          break;
+        case 'getleavestatus':
+          prompt = `
         The user asked: "${message}"
         Here's their current leave status: ${JSON.stringify(data, null, 2)}
         
@@ -1155,17 +1182,17 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Use markdown formatting for clarity.
       `;
-      break;
-      case 'downloadgradehistory':
-      if (session.currentCredentials.isDemo) {
-        prompt = `
+          break;
+        case 'downloadgradehistory':
+          if (session.currentCredentials.isDemo) {
+            prompt = `
         The user asked: "${message}"
         User is on a DEMO account.
         
         Apologize and inform the user that downloading Grade History PDF is not available in Demo Mode as it requires real authentic access to generate official records.
         `;
-      } else {
-        prompt = `
+          } else {
+            prompt = `
         The user asked: "${message}"
         
         Respond by providing a direct link to download their Grade History PDF.
@@ -1175,8 +1202,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         
         Tell them the file will contain their complete academic performance record.
         `;
-      }
-      break;
+          }
+          break;
         default:
           prompt = `The user asked: "${message}"\n\nBased on our conversation, answer their question naturally.`;
           break;
@@ -1192,15 +1219,15 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     if (session.conversationHistory.length > MAX_HISTORY) {
       session.conversationHistory.shift();
     }
-    
+
     res.end();
 
   } catch (error) {
     console.error(`[${sessionId}] Chat error:`, error.message || error);
     if (!res.headersSent) {
-      res.status(500).json({ 
+      res.status(500).json({
         response: "I encountered an error processing your request. Please try again.",
-        data: null 
+        data: null
       });
     } else {
       res.end();
@@ -1212,11 +1239,11 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 app.get('/api/session', (req, res) => {
   const sessionId = req.query.sessionId;
   const session = getSession(sessionId);
-  
+
   if (!session) {
     return res.json({ isLoggedIn: false });
   }
-  
+
   res.json({
     isLoggedIn: session.isLoggedIn,
     isDemo: session.currentCredentials.isDemo,
@@ -1228,11 +1255,11 @@ app.get('/api/session', (req, res) => {
 app.post('/api/session/validate', async (req, res) => {
   const { sessionId } = req.body;
   const session = getSession(sessionId);
-  
+
   if (session && session.isLoggedIn) {
-    res.json({ 
-      valid: true, 
-      isDemo: session.currentCredentials?.isDemo || false 
+    res.json({
+      valid: true,
+      isDemo: session.currentCredentials?.isDemo || false
     });
   } else {
     res.json({ valid: false });
@@ -1243,14 +1270,14 @@ app.post('/api/session/validate', async (req, res) => {
 app.post('/api/logout', async (req, res) => {
   const { sessionId } = req.body;
   const session = getSession(sessionId);
-  
+
   if (session) {
     // Clean up the isolated browser session
     const { destroySession } = require('./vtop-auth');
     destroySession(sessionId);
     delete sessions[sessionId];
   }
-  
+
   res.json({ success: true });
 });
 
@@ -1259,7 +1286,7 @@ app.post('/api/leave/apply', async (req, res) => {
   try {
     const { leaveType, visitingPlace, fromDate, toDate, fromTime, toTime, reason } = req.body;
     const sessionId = req.body.sessionId || req.sessionID;
-    
+
     const session = getSession(sessionId);
     if (!session || !session.isLoggedIn) {
       return res.json({
@@ -1267,7 +1294,7 @@ app.post('/api/leave/apply', async (req, res) => {
         data: null
       });
     }
-    
+
     const authData = await getAuthData(sessionId);
     const result = await applyLeave(authData, session, sessionId, {
       leaveType,
@@ -1278,7 +1305,7 @@ app.post('/api/leave/apply', async (req, res) => {
       toTime,
       reason
     });
-    
+
     res.json(result);
   } catch (error) {
     console.error('Leave application error:', error.message);
@@ -1294,25 +1321,25 @@ app.post('/api/faculty/select', async (req, res) => {
     const session = getSession(sessionId);
 
     if (!session || !session.isLoggedIn) {
-      return res.json({ 
+      return res.json({
         response: "Session expired. Please refresh the page.",
-        data: null 
+        data: null
       });
     }
 
     const authData = await getAuthData(sessionId);
     const facultyData = await getFacultyDetailsByEmpId(authData, session, sessionId, empId);
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      data: facultyData 
+      data: facultyData
     });
 
   } catch (error) {
     console.error('Faculty selection error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -1324,20 +1351,20 @@ app.post('/api/papers/search/github', async (req, res) => {
   console.log('\n📘 GitHub Papers Search:');
   try {
     let { courseCode, courseName, paperType } = req.body;
-    
+
     // Sanitize inputs
     courseCode = courseCode ? sanitizeInput(courseCode) : '';
     courseName = courseName ? sanitizeInput(courseName) : '';
     paperType = paperType ? sanitizeInput(paperType) : '';
-    
+
     if (!courseCode && !courseName) {
       return res.status(400).json({ success: false, error: { message: 'Please provide course code or name' } });
     }
 
     const results = await searchPapers({ courseCode, courseName, paperType });
-    
+
     console.log(`✅ GitHub: Found ${results.length} papers`);
-    
+
     res.json({
       success: true,
       source: 'github',
@@ -1369,20 +1396,20 @@ app.post('/api/papers/search/codechef', async (req, res) => {
   console.log('\n🍴 CodeChef Papers Search:');
   try {
     let { courseCode, courseName, paperType } = req.body;
-    
+
     // Sanitize inputs
     courseCode = courseCode ? sanitizeInput(courseCode) : '';
     courseName = courseName ? sanitizeInput(courseName) : '';
     paperType = paperType ? sanitizeInput(paperType) : '';
-    
+
     if (!courseCode && !courseName) {
       return res.status(400).json({ success: false, error: { message: 'Please provide course code or name' } });
     }
 
     const results = await searchCodeChefPapers({ courseCode, courseName, paperType });
-    
+
     console.log(`✅ CodeChef: Found ${results.length} papers`);
-    
+
     res.json({
       success: true,
       source: 'codechef',
@@ -1422,7 +1449,7 @@ app.post('/api/papers/search', async (req, res) => {
       paperType: paperType || 'all',
       sources: sources || { github: true, codechef: true }
     });
-    
+
     if (!courseCode && !courseName) {
       return res.status(400).json({
         success: false,
@@ -1437,7 +1464,7 @@ app.post('/api/papers/search', async (req, res) => {
     const selectedSources = sources || { github: true, codechef: true };
 
     console.log('🔍 Searching selected sources...');
-    
+
     // Only search from selected sources
     const searchPromises = [];
     if (selectedSources.github) {
@@ -1445,24 +1472,24 @@ app.post('/api/papers/search', async (req, res) => {
     } else {
       searchPromises.push(Promise.resolve([]));
     }
-    
+
     if (selectedSources.codechef) {
       searchPromises.push(searchCodeChefPapers({ courseCode, courseName, paperType }));
     } else {
       searchPromises.push(Promise.resolve([]));
     }
-    
+
     const [githubResults, codechefResults] = await Promise.allSettled(searchPromises);
 
     let allResults = [];
-    
+
     if (githubResults.status === 'fulfilled' && Array.isArray(githubResults.value)) {
       console.log(`✅ GitHub: Found ${githubResults.value.length} papers`);
       allResults.push(...githubResults.value);
     } else {
       console.log('⚠️ GitHub: Failed or rate limited');
     }
-    
+
     if (codechefResults.status === 'fulfilled' && Array.isArray(codechefResults.value)) {
       console.log(`✅ CodeChef: Found ${codechefResults.value.length} papers`);
       allResults.push(...codechefResults.value);
@@ -1508,34 +1535,34 @@ app.post('/api/papers/search', async (req, res) => {
 
 // ===== GRADE HISTORY DOWNLOAD ENDPOINT =====
 app.get('/api/downloads/grade-history', async (req, res) => {
-    const { sessionId } = req.query;
-    const session = getSession(sessionId);
+  const { sessionId } = req.query;
+  const session = getSession(sessionId);
 
-    if (!session || !session.isLoggedIn) {
-        return res.status(401).send('Not logged in');
+  if (!session || !session.isLoggedIn) {
+    return res.status(401).send('Not logged in');
+  }
+
+  try {
+    console.log(`[${sessionId}] Download request received`);
+    const authData = await getAuthData(sessionId);
+
+    if (!authData || !authData.authorizedID) {
+      console.error(`[${sessionId}] Auth data not available`);
+      return res.status(401).send('Authentication data not available');
     }
 
-    try {
-        console.log(`[${sessionId}] Download request received`);
-        const authData = await getAuthData(sessionId);
-        
-        if (!authData || !authData.authorizedID) {
-            console.error(`[${sessionId}] Auth data not available`);
-            return res.status(401).send('Authentication data not available');
-        }
-        
-        console.log(`[${sessionId}] Auth data retrieved for ${authData.authorizedID}`);
-        const dataBuffer = await downloadGradeHistory(authData, session, sessionId);
-        
-        // Return raw PDF buffer
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename="Grade_History.pdf"');
-        res.send(dataBuffer);
+    console.log(`[${sessionId}] Auth data retrieved for ${authData.authorizedID}`);
+    const dataBuffer = await downloadGradeHistory(authData, session, sessionId);
 
-    } catch (error) {
-        console.error(`[${sessionId}] Error downloading grade history:`, error.message);
-        res.status(500).send('Failed to download grade history');
-    }
+    // Return raw PDF buffer
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Grade_History.pdf"');
+    res.send(dataBuffer);
+
+  } catch (error) {
+    console.error(`[${sessionId}] Error downloading grade history:`, error.message);
+    res.status(500).send('Failed to download grade history');
+  }
 });
 
 // ===== DIRECT DATA ENDPOINT (NO AI PROCESSING) =====
@@ -1547,9 +1574,9 @@ app.post('/api/direct-data', async (req, res) => {
     const session = getSession(sessionId);
 
     if (!session || !session.isLoggedIn) {
-      return res.json({ 
+      return res.json({
         success: false,
-        error: 'Session expired. Please refresh the page.' 
+        error: 'Session expired. Please refresh the page.'
       });
     }
 
@@ -1561,87 +1588,87 @@ app.post('/api/direct-data', async (req, res) => {
       case 'cgpa':
         data = await getCGPA(authData, session, sessionId);
         break;
-      
+
       case 'attendance':
         data = await getAttendance(authData, session, sessionId);
         break;
-      
+
       case 'marks':
         data = await getMarks(authData, session, sessionId);
         break;
-      
+
       case 'assignments':
         data = await getAssignments(authData, session, sessionId);
         break;
-      
+
       case 'examSchedule':
         data = await getExamSchedule(authData, session, sessionId);
         break;
-      
+
       case 'timetable':
         data = await getTimetable(authData, session, sessionId);
         break;
-      
+
       case 'leaveHistory':
         data = await getLeaveHistory(authData, session, sessionId);
         break;
-      
+
       case 'leaveStatus':
         data = await getLeaveStatus(authData, session, sessionId);
         break;
-      
+
       case 'grades':
         data = await getGrades(authData, session, sessionId);
         break;
-      
+
       case 'paymentHistory':
         data = await getPaymentHistory(authData, session, sessionId);
         break;
-      
+
       case 'proctorDetails':
         data = await getProctorDetails(authData, session, sessionId);
         break;
-      
+
       case 'gradeHistory':
         data = await getGradeHistory(authData, session, sessionId);
         break;
-      
+
       case 'counsellingRank':
         data = await getCounsellingRank(authData, session, sessionId);
         break;
-      
+
       case 'facultyInfo':
         if (!params?.facultyName) {
-          return res.json({ 
-            success: false, 
-            error: 'Faculty name is required' 
+          return res.json({
+            success: false,
+            error: 'Faculty name is required'
           });
         }
         data = await getFacultyInfo(authData, session, sessionId, params.facultyName);
         break;
-      
+
       case 'academicCalendar':
         data = await getAcademicCalendar(authData, session, sessionId);
         break;
-      
+
       default:
-        return res.json({ 
-          success: false, 
-          error: 'Unknown function' 
+        return res.json({
+          success: false,
+          error: 'Unknown function'
         });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error(`[${req.body.sessionId}] Direct data error:`, error.message || error);
-    res.json({ 
-      success: false, 
-      error: error.message 
+    res.json({
+      success: false,
+      error: error.message
     });
   }
 });
