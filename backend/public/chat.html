@@ -318,18 +318,20 @@
         );
 
         // ===== LIVE FETCH PANEL (replaces old SourcesPanel) =====
-        const FetchPanel = ({ events, fetching, data }) => {
+        const FetchPanel = ({ events, fetching, data, hasContent }) => {
             const [expanded, setExpanded] = useState(true);
             const [jsonOpen, setJsonOpen] = useState(false);
 
-            // Auto-collapse when fetching finishes and text response begins
+            // Only auto-collapse once text actually starts arriving
             useEffect(() => {
-                if (!fetching && data) setExpanded(false);
-            }, [fetching, data]);
+                if (!fetching && data && hasContent) setExpanded(false);
+            }, [fetching, data, hasContent]);
 
             if (!events || events.length === 0) return null;
 
-            const isDone = !fetching;
+            // Three states: fetching → generating (done fetch, no text yet) → done
+            const isGenerating = !fetching && !hasContent;
+            const isDone = !fetching && hasContent;
             const payload = data
                 ? Object.fromEntries(Object.entries(data).filter(([k]) => k !== '_sources'))
                 : null;
@@ -342,8 +344,8 @@
                         style={{ cursor: isDone ? 'pointer' : 'default' }}
                         onClick={() => isDone && setExpanded(e => !e)}
                     >
-                        {/* Icon: spinner while fetching, check when done */}
-                        {fetching ? (
+                        {/* Icon: spinning while fetching or generating, check when fully done */}
+                        {(fetching || isGenerating) ? (
                             <span style={{ display:'inline-flex', alignItems:'center' }}>
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
                                     strokeLinecap="round" strokeLinejoin="round"
@@ -359,7 +361,9 @@
                         <span style={{ marginLeft: '4px' }}>
                             {fetching
                                 ? `Fetching from VTOP…`
-                                : `${events.length} source${events.length !== 1 ? 's' : ''} fetched from VTOP`
+                                : isGenerating
+                                    ? `Generating response…`
+                                    : `${events.length} source${events.length !== 1 ? 's' : ''} fetched from VTOP`
                             }
                         </span>
                         {isDone && (
@@ -973,10 +977,11 @@
                                                     events={message.liveEvents}
                                                     fetching={message.fetching}
                                                     data={message.data}
+                                                    hasContent={!!message.content}
                                                 />
                                             )}
-                                            {/* Bubble — hidden while live panel is showing and no text yet */}
-                                            {!(message.type === 'bot' && !message.loading && message.liveEvents && message.liveEvents.length > 0 && message.fetching && !message.content) && (
+                                            {/* Bubble — hidden while live panel is active and no text yet (covers both fetching + generating gap) */}
+                                            {!(message.type === 'bot' && !message.loading && message.liveEvents && message.liveEvents.length > 0 && !message.content) && (
                                                 <div className={`rounded-2xl px-4 py-3 ${
                                                     message.type === 'user'
                                                         ? 'bg-gradient-to-br from-vit-blue to-blue-700 text-white shadow-md'
