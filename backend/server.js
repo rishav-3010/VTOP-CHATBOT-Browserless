@@ -1,5 +1,13 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 require('dotenv').config();
+
+// Keep the server alive on unhandled errors — log and continue rather than crash
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ Uncaught exception (server kept alive):', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Unhandled rejection (server kept alive):', reason?.message || reason);
+});
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -33,7 +41,7 @@ const { initDB, logUserLogin } = require('./db');
 
 const app = express();
 app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet({
@@ -466,10 +474,21 @@ async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
       res.end();
       return "Error: Model overloaded";
 
+    } else if (error.message?.includes('Failed to parse stream') || error.message?.includes('parse stream')) {
+      console.warn(`⚠️ Gemini stream parse failure (transient). Retrying... (attempt ${retryCount + 1})`);
+
+      if (retryCount < 2) {
+        return await generateStreamingResponse(prompt, session, res, retryCount + 1);
+      }
+
+      res.write("\n\nI hit a temporary connection hiccup with the AI service. Please send your message again.");
+      res.end();
+      return "Error: Stream parse failure";
+
     } else {
-      // Unknown error - let it bubble up
       console.error('Error in streaming generation:', error.message || error);
-      throw error;
+      try { res.write("\n\nAn unexpected error occurred. Please try again."); res.end(); } catch (_) {}
+      return "Error: Unknown";
     }
   }
 }
@@ -617,6 +636,29 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     console.log(`[${sessionId}] Recognized intents:`, intents.join(', '));
 
     let allData = {};
+    const fetchedSources = [];
+
+    const campus = session.currentCredentials?.campus || 'vellore';
+    const baseUrl = campus === 'chennai' ? 'https://vtopcc.vit.ac.in' : 'https://vtop.vit.ac.in';
+
+    const INTENT_URL_MAP = {
+      getcgpa:          { label: 'CGPA & Credits',         url: `${baseUrl}/vtop/get/dashboard/current/cgpa/credits` },
+      getattendance:    { label: 'Student Attendance',      url: `${baseUrl}/vtop/processViewStudentAttendance` },
+      getmarks:         { label: 'Internal Marks',          url: `${baseUrl}/vtop/examinations/processViewStudentInternalMarks` },
+      getassignments:   { label: 'Digital Assignments',     url: `${baseUrl}/vtop/examinations/processViewDigitalAssignment` },
+      getloginhistory:  { label: 'Login History',           url: `${baseUrl}/vtop/getStudentLoginHistory` },
+      getexamschedule:  { label: 'Exam Schedule',           url: `${baseUrl}/vtop/examinations/processViewExamSchedule` },
+      gettimetable:     { label: 'Timetable',               url: `${baseUrl}/vtop/processViewTimeTable` },
+      getleavehistory:  { label: 'Leave History',           url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveHistoryView` },
+      getleavestatus:   { label: 'Leave Status',            url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveStatusView` },
+      getgrades:        { label: 'Semester Grades',         url: `${baseUrl}/vtop/examinations/processViewStudentGrades` },
+      getpaymenthistory:{ label: 'Payment History',         url: `${baseUrl}/vtop/studentsRecord/StudentPaymentHistory` },
+      getproctordetails:{ label: 'Proctor Details',         url: `${baseUrl}/vtop/academics/processViewProctorDetails` },
+      getgradehistory:  { label: 'Grade History',           url: `${baseUrl}/vtop/examinations/processViewStudentHistoricGradeReport` },
+      getcounsellingrank:{ label: 'Counselling Rank',       url: `${baseUrl}/vtop/hostelManagement/processCounsellingRankView` },
+      getfacultyinfo:   { label: 'Faculty Search',          url: `${baseUrl}/vtop/academics/processFacultySearch` },
+      getacademiccalendar:{ label: 'Academic Calendar',    url: `${baseUrl}/vtop/processViewAcademicCalendar` },
+    };
 
     // Check if we need to fetch multiple data sources
     const needsMultipleData = intents.length > 1 && !intents.includes('general');
@@ -626,6 +668,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       const authData = await getAuthData(sessionId);
 
       const promises = intents.map(async (intent) => {
+        const src = INTENT_URL_MAP[intent];
+        if (src) res.write(JSON.stringify({ type: 'FETCH_START', label: src.label, url: src.url }) + '\n\n');
         try {
           switch (intent) {
             case 'getcgpa':
@@ -671,15 +715,19 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
               break;
             case 'getfacultyinfo':
-              // Faculty info requires facultyName parameter - handle separately
               console.log(`[${sessionId}] Faculty info requires name parameter`);
               break;
             case 'getacademiccalendar':
               allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
               break;
           }
+          if (src) {
+            fetchedSources.push(src);
+            res.write(JSON.stringify({ type: 'FETCH_DONE', label: src.label, url: src.url }) + '\n\n');
+          }
         } catch (error) {
           console.error(`[${sessionId}] Error fetching ${intent}:`, error.message);
+          if (src) res.write(JSON.stringify({ type: 'FETCH_DONE', label: src.label, url: src.url, error: true }) + '\n\n');
         }
       });
 
@@ -691,6 +739,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       const intent = intents[0];
       const authData = await getAuthData(sessionId);
 
+      const singleSrc = INTENT_URL_MAP[intent];
+      if (singleSrc) res.write(JSON.stringify({ type: 'FETCH_START', label: singleSrc.label, url: singleSrc.url }) + '\n\n');
       try {
         switch (intent) {
           case 'getcgpa':
@@ -736,9 +786,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
             break;
           case 'getfacultyinfo':
-            // Use Gemini to extract the faculty name intelligently
             let facultyName = await extractFacultyName(message);
-
             if (!facultyName || facultyName.length < 3) {
               res.write("Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Where is Samridhi Sarkar's cabin?'");
               res.end();
@@ -750,13 +798,18 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             allData.academicCalendar = await getAcademicCalendar(authData, session, sessionId);
             break;
         }
+        if (singleSrc) {
+          fetchedSources.push(singleSrc);
+          res.write(JSON.stringify({ type: 'FETCH_DONE', label: singleSrc.label, url: singleSrc.url }) + '\n\n');
+        }
       } catch (error) {
         console.error(`[${sessionId}] Error fetching data:`, error.message);
+        if (singleSrc) res.write(JSON.stringify({ type: 'FETCH_DONE', label: singleSrc.label, url: singleSrc.url, error: true }) + '\n\n');
       }
     }
 
-    // Send the DATA packet first
-    res.write(JSON.stringify({ type: 'DATA', payload: allData }) + '\n\n');
+    // Send the DATA packet first (includes sources for the frontend)
+    res.write(JSON.stringify({ type: 'DATA', payload: { ...allData, _sources: fetchedSources } }) + '\n\n');
 
 
     // Build prompt based on intents and data

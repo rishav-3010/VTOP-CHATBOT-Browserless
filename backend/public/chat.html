@@ -62,6 +62,34 @@
         .dark .markdown-content code { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
         .dark .gemini-spinner::before { background: #1e293b; }
 
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Sources / Fetch panel */
+        .sources-panel { border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .sources-header { display: flex; align-items: center; gap: 6px; padding: 7px 12px; cursor: pointer; user-select: none; font-size: 12px; font-weight: 500; }
+        .sources-header:hover { filter: brightness(0.95); }
+        .sources-body { padding: 10px 12px; border-top: 1px solid rgba(0,0,0,0.06); }
+        .source-chip { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: 11.5px; }
+        .source-chip a { font-family: monospace; word-break: break-all; text-decoration: none; }
+        .source-chip a:hover { text-decoration: underline; }
+        .json-toggle { margin-top: 6px; padding: 3px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; border: 1px solid; background: transparent; }
+        .json-block { margin-top: 8px; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow-y: auto; }
+        .dark .sources-panel { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(71, 85, 105, 0.35); }
+        .dark .sources-header { color: #94a3b8; }
+        .dark .sources-body { border-color: rgba(71, 85, 105, 0.3); }
+        .dark .source-chip a { color: #60a5fa; }
+        .dark .source-chip .label { color: #94a3b8; }
+        .dark .json-toggle { color: #64748b; border-color: #334155; }
+        .dark .json-toggle:hover { background: rgba(51,65,85,0.5); }
+        .dark .json-block { background: #0f172a; color: #7dd3fc; border: 1px solid #1e293b; }
+        .light .sources-panel, :not(.dark) .sources-panel { background: #f1f5f9; border: 1px solid #e2e8f0; }
+        .light .sources-header, :not(.dark) .sources-header { color: #64748b; }
+        .light .source-chip a, :not(.dark) .source-chip a { color: #2563eb; }
+        .light .source-chip .label, :not(.dark) .source-chip .label { color: #64748b; }
+        .light .json-toggle, :not(.dark) .json-toggle { color: #64748b; border-color: #cbd5e1; }
+        .light .json-toggle:hover, :not(.dark) .json-toggle:hover { background: #e2e8f0; }
+        .light .json-block, :not(.dark) .json-block { background: #fff; color: #0369a1; border: 1px solid #e2e8f0; }
+
         .markdown-content table {
             width: 100%;
             border-collapse: collapse;
@@ -289,6 +317,98 @@
             </svg>
         );
 
+        // ===== LIVE FETCH PANEL (replaces old SourcesPanel) =====
+        const FetchPanel = ({ events, fetching, data }) => {
+            const [expanded, setExpanded] = useState(true);
+            const [jsonOpen, setJsonOpen] = useState(false);
+
+            // Auto-collapse when fetching finishes and text response begins
+            useEffect(() => {
+                if (!fetching && data) setExpanded(false);
+            }, [fetching, data]);
+
+            if (!events || events.length === 0) return null;
+
+            const isDone = !fetching;
+            const payload = data
+                ? Object.fromEntries(Object.entries(data).filter(([k]) => k !== '_sources'))
+                : null;
+
+            return (
+                <div className="sources-panel mb-2">
+                    {/* Header — always visible */}
+                    <div
+                        className="sources-header"
+                        style={{ cursor: isDone ? 'pointer' : 'default' }}
+                        onClick={() => isDone && setExpanded(e => !e)}
+                    >
+                        {/* Icon: spinner while fetching, check when done */}
+                        {fetching ? (
+                            <span style={{ display:'inline-flex', alignItems:'center' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                    strokeLinecap="round" strokeLinejoin="round"
+                                    style={{ animation:'spin 1s linear infinite' }}>
+                                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                </svg>
+                            </span>
+                        ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20 6 9 17l-5-5"/>
+                            </svg>
+                        )}
+                        <span style={{ marginLeft: '4px' }}>
+                            {fetching
+                                ? `Fetching from VTOP…`
+                                : `${events.length} source${events.length !== 1 ? 's' : ''} fetched from VTOP`
+                            }
+                        </span>
+                        {isDone && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                strokeLinecap="round" strokeLinejoin="round"
+                                style={{ marginLeft:'auto', transform: expanded ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}>
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                        )}
+                    </div>
+
+                    {/* Body — URL rows */}
+                    {expanded && (
+                        <div className="sources-body">
+                            {events.map((ev, i) => (
+                                <div className="source-chip" key={i} style={{ opacity: ev.error ? 0.5 : 1 }}>
+                                    {ev.done ? (
+                                        ev.error
+                                            ? <span style={{color:'#ef4444',fontSize:'11px',flexShrink:0}}>✕</span>
+                                            : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+                                                <path d="M20 6 9 17l-5-5"/>
+                                              </svg>
+                                    ) : (
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                            strokeLinecap="round" strokeLinejoin="round"
+                                            style={{ flexShrink:0, animation:'spin 1s linear infinite', opacity:0.6 }}>
+                                            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                        </svg>
+                                    )}
+                                    <span className="label" style={{flexShrink:0}}>{ev.label}</span>
+                                    <a href={ev.url} target="_blank" rel="noopener noreferrer">{ev.url}</a>
+                                </div>
+                            ))}
+                            {isDone && payload && Object.keys(payload).length > 0 && (
+                                <>
+                                    <button className="json-toggle" onClick={e => { e.stopPropagation(); setJsonOpen(o => !o); }}>
+                                        {jsonOpen ? 'Hide' : 'Show'} raw JSON response
+                                    </button>
+                                    {jsonOpen && (
+                                        <div className="json-block">{JSON.stringify(payload, null, 2)}</div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         // ===== SPINNER & THINKING INDICATOR =====
         const GeminiSpinner = () => (
             <div className="gemini-spinner">
@@ -462,41 +582,40 @@
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let botMessageId = Date.now() + 2;
-                    
+
                     let streamBuffer = "";
                     let displayedText = "";
-                    // Buffer for detecting and parsing the JSON header across chunks
-                    let headerBuffer = ""; 
-                    let isHeaderFound = false;
-                    
+                    let packetBuffer = "";   // accumulates chunks before DATA packet
+                    let isDataFound = false; // true once DATA packet received
                     let receivedData = null;
                     let isStreamComplete = false;
 
+                    // Initialise bot message with live-fetch state
                     setMessages(prev => {
                         const filtered = prev.filter(msg => !msg.loading);
                         return [...filtered, {
                             id: botMessageId,
                             type: 'bot',
                             content: '',
-                            timestamp: new Date()
+                            timestamp: new Date(),
+                            liveEvents: [],  // [{label, url, done, error}]
+                            fetching: true   // true until DATA packet arrives
                         }];
                     });
 
+                    // Typing animation interval
                     const typingInterval = setInterval(() => {
                         if (displayedText.length < streamBuffer.length) {
                             const backlog = streamBuffer.length - displayedText.length;
                             let charsToAdd = 1;
-                            
                             if (backlog > 200) charsToAdd = 10;
                             else if (backlog > 100) charsToAdd = 5;
                             else if (backlog > 30) charsToAdd = 3;
                             else if (backlog > 10) charsToAdd = 2;
-                            
                             displayedText += streamBuffer.substring(displayedText.length, displayedText.length + charsToAdd);
-                            
-                            setMessages(prev => prev.map(msg => 
-                                msg.id === botMessageId 
-                                    ? { ...msg, content: displayedText, data: receivedData } 
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === botMessageId
+                                    ? { ...msg, content: displayedText }
                                     : msg
                             ));
                         } else if (isStreamComplete) {
@@ -504,56 +623,78 @@
                         }
                     }, 20);
 
-                    const startMarker = '{"type":"DATA"';
-
+                    // Stream reading loop — handles multi-packet protocol
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) {
                             isStreamComplete = true;
-                             // Flush any remaining header buffer if we finished without finding a valid header
-                            if (!isHeaderFound && headerBuffer.length > 0) {
-                                streamBuffer += headerBuffer;
-                            }
+                            // If DATA never arrived, treat any buffered content as text
+                            if (!isDataFound && packetBuffer) streamBuffer += packetBuffer;
                             break;
                         }
 
                         const text = decoder.decode(value, { stream: true });
-                        
-                        if (!isHeaderFound) {
-                            headerBuffer += text;
-                            
-                            // Check if it's definitely NOT our JSON packet (to avoid buffering normal text forever)
-                            if (headerBuffer.length >= startMarker.length && !headerBuffer.startsWith(startMarker)) {
-                                streamBuffer += headerBuffer;
-                                headerBuffer = ""; // Clear it so we don't re-add it
-                                isHeaderFound = true;
-                                continue;
-                            }
 
-                            // Check for the delimiter
-                            const delimiterIndex = headerBuffer.indexOf('\n\n');
-                            
-                            if (delimiterIndex !== -1) {
-                                const potentialJson = headerBuffer.substring(0, delimiterIndex);
-                                const remaining = headerBuffer.substring(delimiterIndex + 2);
-                                
-                                if (potentialJson.startsWith(startMarker)) {
-                                    try {
-                                        const dataPart = JSON.parse(potentialJson);
-                                        receivedData = dataPart.payload;
-                                        streamBuffer += remaining;
-                                        isHeaderFound = true;
-                                    } catch (e) {
-                                        // Parsing failed, treat as text
-                                        streamBuffer += headerBuffer;
-                                        isHeaderFound = true;
-                                    }
-                                } else {
-                                    // Found delimiter but wasn't our packet
-                                    streamBuffer += headerBuffer;
-                                    isHeaderFound = true;
+                        if (!isDataFound) {
+                            packetBuffer += text;
+
+                            // Process all complete \n\n-delimited packets
+                            let keepParsing = true;
+                            while (keepParsing) {
+                                const delimIdx = packetBuffer.indexOf('\n\n');
+                                if (delimIdx === -1) break; // wait for more data
+
+                                const packet = packetBuffer.substring(0, delimIdx);
+                                packetBuffer = packetBuffer.substring(delimIdx + 2);
+
+                                if (!packet.startsWith('{')) {
+                                    // Not JSON — treat as plain text, stop packet parsing
+                                    streamBuffer += packet + '\n\n' + packetBuffer;
+                                    packetBuffer = "";
+                                    isDataFound = true;
+                                    keepParsing = false;
+                                    break;
                                 }
-                                headerBuffer = ""; // Done with header buffer
+
+                                try {
+                                    const parsed = JSON.parse(packet);
+
+                                    if (parsed.type === 'DATA') {
+                                        receivedData = parsed.payload;
+                                        isDataFound = true;
+                                        streamBuffer += packetBuffer;
+                                        packetBuffer = "";
+                                        // Mark fetching done, attach data payload
+                                        setMessages(prev => prev.map(msg =>
+                                            msg.id === botMessageId
+                                                ? { ...msg, fetching: false, data: receivedData,
+                                                    liveEvents: (msg.liveEvents || []).map(e => ({ ...e, done: true })) }
+                                                : msg
+                                        ));
+                                        keepParsing = false;
+
+                                    } else if (parsed.type === 'FETCH_START') {
+                                        setMessages(prev => prev.map(msg =>
+                                            msg.id === botMessageId
+                                                ? { ...msg, liveEvents: [...(msg.liveEvents || []), { label: parsed.label, url: parsed.url, done: false }] }
+                                                : msg
+                                        ));
+
+                                    } else if (parsed.type === 'FETCH_DONE') {
+                                        setMessages(prev => prev.map(msg =>
+                                            msg.id === botMessageId
+                                                ? { ...msg, liveEvents: (msg.liveEvents || []).map(e =>
+                                                    e.url === parsed.url ? { ...e, done: true, error: !!parsed.error } : e) }
+                                                : msg
+                                        ));
+                                    }
+                                } catch (e) {
+                                    // Malformed JSON — treat as text
+                                    streamBuffer += packet + '\n\n' + packetBuffer;
+                                    packetBuffer = "";
+                                    isDataFound = true;
+                                    keepParsing = false;
+                                }
                             }
                         } else {
                             streamBuffer += text;
@@ -825,25 +966,38 @@
                                              <span className="text-sm">✨</span>}
                                         </div>
                                         {/* Message Bubble */}
-                                        <div className={`rounded-2xl px-4 py-3 ${
-                                            message.type === 'user' 
-                                                ? 'bg-gradient-to-br from-vit-blue to-blue-700 text-white shadow-md' 
-                                                : message.type === 'system' 
-                                                    ? darkMode 
-                                                        ? 'bg-slate-800 text-slate-200 border border-slate-700' 
-                                                        : 'bg-blue-50 text-gray-800 border border-blue-100'
-                                                    : darkMode 
-                                                        ? 'bg-slate-800 text-slate-200 border border-slate-700 shadow-lg' 
-                                                        : 'bg-white text-gray-800 shadow-md border border-gray-100'
-                                        }`}>
-                                            {(message.loading || (!message.content && !message.data && message.type === 'bot')) ? 
-                                                <ThinkingIndicator /> : 
-                                                formatMessage(message)}
-                                            <div className={`text-xs mt-2 ${
-                                                message.type === 'user' ? 'text-blue-200' : darkMode ? 'text-slate-500' : 'text-gray-400'
-                                            }`}>
-                                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
+                                        <div>
+                                            {/* Live fetch / sources panel — only for bot messages */}
+                                            {message.type === 'bot' && !message.loading && message.liveEvents && message.liveEvents.length > 0 && (
+                                                <FetchPanel
+                                                    events={message.liveEvents}
+                                                    fetching={message.fetching}
+                                                    data={message.data}
+                                                />
+                                            )}
+                                            {/* Bubble — hidden while live panel is showing and no text yet */}
+                                            {!(message.type === 'bot' && !message.loading && message.liveEvents && message.liveEvents.length > 0 && message.fetching && !message.content) && (
+                                                <div className={`rounded-2xl px-4 py-3 ${
+                                                    message.type === 'user'
+                                                        ? 'bg-gradient-to-br from-vit-blue to-blue-700 text-white shadow-md'
+                                                        : message.type === 'system'
+                                                            ? darkMode
+                                                                ? 'bg-slate-800 text-slate-200 border border-slate-700'
+                                                                : 'bg-blue-50 text-gray-800 border border-blue-100'
+                                                            : darkMode
+                                                                ? 'bg-slate-800 text-slate-200 border border-slate-700 shadow-lg'
+                                                                : 'bg-white text-gray-800 shadow-md border border-gray-100'
+                                                }`}>
+                                                    {(message.loading || (message.type === 'bot' && !message.content && !message.liveEvents?.length))
+                                                        ? <ThinkingIndicator />
+                                                        : formatMessage(message)}
+                                                    <div className={`text-xs mt-2 ${
+                                                        message.type === 'user' ? 'text-blue-200' : darkMode ? 'text-slate-500' : 'text-gray-400'
+                                                    }`}>
+                                                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
