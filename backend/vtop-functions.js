@@ -965,7 +965,7 @@ async function getLeaveHistory(authData, session, sessionId) {
   }
 }
 
-async function getGrades(authData, session, sessionId, semesterId = 'VL20252601') {
+async function getGrades(authData, session, sessionId, semesterId = 'VL20252605') {
   try {
     if (isCacheValid(session, 'grades')) {
       return session.cache.grades.data;
