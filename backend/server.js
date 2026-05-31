@@ -212,7 +212,7 @@ function getSession(sessionId) {
   return sessions[sessionId] || null;
 }
 
-async function extractFacultyName(message, retryCount = 0) {
+async function extractFacultyName(message, history = [], retryCount = 0) {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
 
   const config = getBestSessionConfig();
@@ -222,7 +222,11 @@ async function extractFacultyName(message, retryCount = 0) {
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  const prompt = `Extract only the faculty/teacher/professor name from this message. Return ONLY the name, nothing else. If no name is found, return "UNKNOWN".
+  // Format recent history for context (last 6 messages)
+  const recentHistory = history.slice(-6).map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n');
+
+  const prompt = `Extract only the faculty/teacher/professor name from the user's latest message. Return ONLY the name, nothing else. If no name is found, return "UNKNOWN".
+If the user's message refers to a previous list of names (e.g. "the second one", "pick the 1st"), look at the Conversation History to figure out which exact name they mean, and return that name.Also never return Dr or Prof just the faculty name like Yogesh Babu or whatever
 
 Examples:
 - "show me info about Yokesh Duraisamy" → "Yokesh Duraisamy"
@@ -231,7 +235,10 @@ Examples:
 - "what are the open hours for Dr. Priya" → "Priya"
 - "faculty search" → "UNKNOWN"
 
-Message: "${message}"`;
+Conversation History:
+${recentHistory || "No history"}
+
+User's Latest Message: "${message}"`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -245,7 +252,7 @@ Message: "${message}"`;
   } catch (error) {
     if ((error.status === 429 || error.message?.includes('quota')) && retryCount < GEMINI_KEYS.length) {
       blockKey(key, modelName, error.message);
-      return extractFacultyName(message, retryCount + 1);
+      return extractFacultyName(message, history, retryCount + 1);
     }
     console.error('Faculty name extraction failed:', error.message);
     return null;
@@ -755,7 +762,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             allData.counsellingRank = await getCounsellingRank(authData, session, sessionId);
             break;
           case 'getfacultyinfo':
-            let facultyName = await extractFacultyName(message);
+            let facultyName = await extractFacultyName(message, session.conversationHistory);
             if (!facultyName || facultyName.length < 3) {
               res.write("Please provide the faculty member's name (at least 3 characters). For example: 'Show info for Yokesh' or 'Where is Samridhi Sarkar's cabin?'");
               res.end();
