@@ -487,7 +487,7 @@ async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
 
     } else {
       console.error('Error in streaming generation:', error.message || error);
-      try { res.write("\n\nAn unexpected error occurred. Please try again."); res.end(); } catch (_) {}
+      try { res.write("\n\nAn unexpected error occurred. Please try again."); res.end(); } catch (_) { }
       return "Error: Unknown";
     }
   }
@@ -611,22 +611,22 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     const baseUrl = campus === 'chennai' ? 'https://vtopcc.vit.ac.in' : 'https://vtop.vit.ac.in';
 
     const INTENT_URL_MAP = {
-      getcgpa:          { label: 'CGPA & Credits',         url: `${baseUrl}/vtop/get/dashboard/current/cgpa/credits` },
-      getattendance:    { label: 'Student Attendance',      url: `${baseUrl}/vtop/processViewStudentAttendance` },
-      getmarks:         { label: 'Internal Marks',          url: `${baseUrl}/vtop/examinations/processViewStudentInternalMarks` },
-      getassignments:   { label: 'Digital Assignments',     url: `${baseUrl}/vtop/examinations/processViewDigitalAssignment` },
-      getloginhistory:  { label: 'Login History',           url: `${baseUrl}/vtop/getStudentLoginHistory` },
-      getexamschedule:  { label: 'Exam Schedule',           url: `${baseUrl}/vtop/examinations/processViewExamSchedule` },
-      gettimetable:     { label: 'Timetable',               url: `${baseUrl}/vtop/processViewTimeTable` },
-      getleavehistory:  { label: 'Leave History',           url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveHistoryView` },
-      getleavestatus:   { label: 'Leave Status',            url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveStatusView` },
-      getgrades:        { label: 'Semester Grades',         url: `${baseUrl}/vtop/examinations/processViewStudentGrades` },
-      getpaymenthistory:{ label: 'Payment History',         url: `${baseUrl}/vtop/studentsRecord/StudentPaymentHistory` },
-      getproctordetails:{ label: 'Proctor Details',         url: `${baseUrl}/vtop/academics/processViewProctorDetails` },
-      getgradehistory:  { label: 'Grade History',           url: `${baseUrl}/vtop/examinations/processViewStudentHistoricGradeReport` },
-      getcounsellingrank:{ label: 'Counselling Rank',       url: `${baseUrl}/vtop/hostelManagement/processCounsellingRankView` },
-      getfacultyinfo:   { label: 'Faculty Search',          url: `${baseUrl}/vtop/academics/processFacultySearch` },
-      getacademiccalendar:{ label: 'Academic Calendar',    url: `${baseUrl}/vtop/processViewAcademicCalendar` },
+      getcgpa: { label: 'CGPA & Credits', url: `${baseUrl}/vtop/get/dashboard/current/cgpa/credits` },
+      getattendance: { label: 'Student Attendance', url: `${baseUrl}/vtop/processViewStudentAttendance` },
+      getmarks: { label: 'Internal Marks', url: `${baseUrl}/vtop/examinations/processViewStudentInternalMarks` },
+      getassignments: { label: 'Digital Assignments', url: `${baseUrl}/vtop/examinations/processViewDigitalAssignment` },
+      getloginhistory: { label: 'Login History', url: `${baseUrl}/vtop/getStudentLoginHistory` },
+      getexamschedule: { label: 'Exam Schedule', url: `${baseUrl}/vtop/examinations/processViewExamSchedule` },
+      gettimetable: { label: 'Timetable', url: `${baseUrl}/vtop/processViewTimeTable` },
+      getleavehistory: { label: 'Leave History', url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveHistoryView` },
+      getleavestatus: { label: 'Leave Status', url: `${baseUrl}/vtop/hostelLeaveManagement/processLeaveStatusView` },
+      getgrades: { label: 'Semester Grades', url: `${baseUrl}/vtop/examinations/processViewStudentGrades` },
+      getpaymenthistory: { label: 'Payment History', url: `${baseUrl}/vtop/studentsRecord/StudentPaymentHistory` },
+      getproctordetails: { label: 'Proctor Details', url: `${baseUrl}/vtop/academics/processViewProctorDetails` },
+      getgradehistory: { label: 'Grade History', url: `${baseUrl}/vtop/examinations/processViewStudentHistoricGradeReport` },
+      getcounsellingrank: { label: 'Counselling Rank', url: `${baseUrl}/vtop/hostelManagement/processCounsellingRankView` },
+      getfacultyinfo: { label: 'Faculty Search', url: `${baseUrl}/vtop/academics/processFacultySearch` },
+      getacademiccalendar: { label: 'Academic Calendar', url: `${baseUrl}/vtop/processViewAcademicCalendar` },
     };
 
     // Check if we need to fetch multiple data sources
