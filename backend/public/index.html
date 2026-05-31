@@ -682,26 +682,7 @@
         const App = () => {
             const [isLoading, setIsLoading] = useState(false);
             const [loginError, setLoginError] = useState(null);
-            const [sessionId, setSessionId] = useState(null);
             const [redirectTarget, setRedirectTarget] = useState('chat'); // 'chat' or 'hub'
-
-            // Generate session ID helper
-            const generateSessionId = () => {
-                if (window.crypto && window.crypto.randomUUID) {
-                    return window.crypto.randomUUID();
-                }
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
-            };
-
-            useEffect(() => {
-                // Initialize session ID
-                const sid = localStorage.getItem('sessionId') || generateSessionId();
-                localStorage.setItem('sessionId', sid);
-                setSessionId(sid);
-            }, []);
 
             const handleLogin = async (loginData) => {
                 setIsLoading(true);
@@ -711,13 +692,14 @@
                     const response = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...loginData, sessionId })
+                        body: JSON.stringify({ ...loginData })
                     });
                     
                     const result = await response.json();
                     
                     if (result.success) {
-                        // Redirect based on selection
+                        // Store the server-issued sessionId (never generated client-side)
+                        localStorage.setItem('sessionId', result.sessionId);
                         if (redirectTarget === 'hub') {
                             window.location.href = '/hub.html';
                         } else {

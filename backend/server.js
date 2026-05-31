@@ -496,41 +496,10 @@ async function generateStreamingResponse(prompt, session, res, retryCount = 0) {
 // ===== LOGIN ENDPOINT =====
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password, useDemo, sessionId, campus = 'vellore' } = req.body;
-
-    let session = getSession(sessionId);
-
-    // Always clear old session data on new login attempt
-    // This fixes the issue where refreshing page but using same sessionId (from localStorage)
-    // would keep old cache/credentials if the server wasn't restarted
-    if (session) {
-      delete sessions[sessionId];
-    }
-
-    // Create fresh session
-    sessions[sessionId] = {
-      isLoggedIn: false,
-      conversationHistory: [],
-      currentCredentials: {},
-      cache: {
-        cgpa: { data: null, timestamp: 0 },
-        attendance: { data: null, timestamp: 0 },
-        marks: { data: null, timestamp: 0 },
-        assignments: { data: null, timestamp: 0 },
-        loginHistory: { data: null, timestamp: 0 },
-        examSchedule: { data: null, timestamp: 0 },
-        timetable: { data: null, timestamp: 0 },
-        leaveHistory: { data: null, timestamp: 0 },
-        grades: { data: null, timestamp: 0 },
-        paymentHistory: { data: null, timestamp: 0 },
-        proctorDetails: { data: null, timestamp: 0 },
-        gradeHistory: { data: null, timestamp: 0 },
-        counsellingRank: { data: null, timestamp: 0 },
-        academicCalendar: { data: null, timestamp: 0 },
-        leaveStatus: { data: null, timestamp: 0 }
-      }
-    };
-    session = sessions[sessionId];
+    const { username, password, useDemo, campus = 'vellore' } = req.body;
+    // Always generate a fresh, server-side session ID — never trust the client's value
+    const sessionId = createSession();
+    const session = sessions[sessionId];
 
     let loginUsername, loginPassword;
 

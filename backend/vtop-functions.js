@@ -9,7 +9,7 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 function getDefaultSemesterId(campus) {
   // Normalize campus string just in case
   const c = campus ? campus.toLowerCase() : 'vellore';
-  
+
   // Update these IDs if the semester changes!
   if (c === 'chennai') {
     return 'CH20252605'; // Chennai Fall Semester
@@ -32,7 +32,7 @@ async function getCGPA(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching CGPA...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/get/dashboard/current/cgpa/credits`,
       new URLSearchParams({
@@ -48,10 +48,10 @@ async function getCGPA(authData, session, sessionId) {
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const cgpaData = {};
-    
+
     $('li.list-group-item').each((i, el) => {
       const label = $(el).find('span.card-title').text().trim();
       const value = $(el).find('span.fontcolor3 span').text().trim();
@@ -59,11 +59,11 @@ async function getCGPA(authData, session, sessionId) {
         cgpaData[label] = value;
       }
     });
-    
+
     if (session) {
       session.cache.cgpa = { data: cgpaData, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] CGPA fetched for ${authData.authorizedID}`);
     return cgpaData;
   } catch (error) {
@@ -84,10 +84,10 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
     const isChennai = campus === 'chennai';
-    
+
     // Dynamic Semester ID
     const currentSemId = semesterId || getDefaultSemesterId(campus);
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/processViewStudentAttendance`,
       new URLSearchParams({
@@ -104,20 +104,20 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const attendanceData = [];
 
     // 🛠️ STRICT MAPPING (Added 'status' index)
     // Vellore: Status is usually at index 8
     // Chennai: Status is usually at index 12
-    const IDX = isChennai ? 
-      { type: 3, attended: 9, total: 10, percent: 11, status: 12 } : 
+    const IDX = isChennai ?
+      { type: 3, attended: 9, total: 10, percent: 11, status: 12 } :
       { type: 2, attended: 5, total: 6, percent: 7, status: 8 };
 
     // Select Table
-    const $table = isChennai ? 
-      $('.table-responsive table').first() : 
+    const $table = isChennai ?
+      $('.table-responsive table').first() :
       $('#AttendanceDetailDataTable');
 
     if ($table.length === 0) {
@@ -127,22 +127,22 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
 
     $table.find('tbody tr').each((i, row) => {
       const cells = $(row).find('td');
-      
+
       // Ensure row has enough data
       if (cells.length > IDX.percent) {
         // 1. Extract Basic Data
         const slNo = $(cells[0]).text().trim();
         const courseType = $(cells[IDX.type]).text().trim();
-        
+
         // Fixed Syntax: Logic to determine Course Detail string
-        const courseDetail = (campus === 'vellore') 
-          ? $(cells[2]).text().trim() 
+        const courseDetail = (campus === 'vellore')
+          ? $(cells[2]).text().trim()
           : $(cells[1]).text().trim() + " - " + $(cells[2]).text().trim();
 
         // 2. Extract Debar Status (NEW)
         // We check if the cell exists before trying to read it to avoid crashes
         const debarStatus = cells.length > IDX.status ? $(cells[IDX.status]).text().trim() : 'N/A';
-        
+
         // 3. Parse Numbers
         const attendedClasses = parseFloat($(cells[IDX.attended]).text().trim());
         const totalClasses = parseFloat($(cells[IDX.total]).text().trim());
@@ -162,7 +162,7 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
         // Threshold 0.7401
         if (currentPercentage < 0.7401) {
           classesNeeded = Math.ceil((0.7401 * totalClasses - attendedClasses) / 0.2599);
-          
+
           if (isLab) {
             classesNeeded = Math.ceil(classesNeeded / 2);
             alertMessage = `${classesNeeded} lab(s) should be attended`;
@@ -172,12 +172,12 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
           alertStatus = 'danger';
         } else {
           canSkip = Math.floor((attendedClasses - 0.7401 * totalClasses) / 0.7401);
-          
+
           if (isLab) canSkip = Math.floor(canSkip / 2);
           if (canSkip < 0) canSkip = 0;
-          
+
           alertMessage = isLab ? `Only ${canSkip} lab(s) can be skipped` : `Only ${canSkip} class(es) can be skipped`;
-          
+
           if (currentPercentage >= 0.7401 && currentPercentage <= 0.7499) {
             alertStatus = 'caution';
           } else {
@@ -202,11 +202,11 @@ async function getAttendance(authData, session, sessionId, semesterId = null) {
         }
       }
     });
-    
+
     if (session) {
       session.cache.attendance = { data: attendanceData, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Attendance fetched for ${authData.authorizedID}`);
     return attendanceData;
   } catch (error) {
@@ -226,10 +226,10 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
     const client = getClient(sessionId);
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
-    
+
     // FIX: Dynamic Semester ID
     const currentSemId = semesterId || getDefaultSemesterId(campus);
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/examinations/doStudentMarkView`,
       new URLSearchParams({
@@ -246,15 +246,15 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const courses = [];
     const rows = $('tbody tr').toArray();
-    
+
     for (let i = 0; i < rows.length; i++) {
       const row = $(rows[i]);
       if (!row.hasClass('tableContent') || row.find('.customTable-level1').length > 0) continue;
-      
+
       const cells = row.find('td');
       const course = {
         slNo: $(cells[0]).text().trim(),
@@ -264,7 +264,7 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
         slot: $(cells[7]).text().trim(),
         marks: []
       };
-      
+
       const nextRow = $(rows[i + 1]);
       const marksTable = nextRow.find('.customTable-level1 tbody');
       if (marksTable.length > 0) {
@@ -308,7 +308,7 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
         if (totWeightagePercent == 60) {
           let passMarks = null;
           let passStatus = 'unknown';
-          
+
           if (isTheory) {
             if (totWeightageEqui >= 34) {
               passMarks = 40;
@@ -326,7 +326,7 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
               passStatus = 'danger';
             }
           }
-          
+
           course.passingInfo = {
             required: passMarks,
             status: passStatus,
@@ -337,11 +337,11 @@ async function getMarks(authData, session, sessionId, semesterId = null) {
       }
       courses.push(course);
     }
-    
+
     if (session) {
       session.cache.marks = { data: courses, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Marks fetched for ${authData.authorizedID}`);
     return courses;
   } catch (error) {
@@ -361,10 +361,10 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
     const client = getClient(sessionId);
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
-    
+
     // FIX: Dynamic Semester ID
     const currentSemId = semesterId || getDefaultSemesterId(campus);
-    
+
     const subRes = await client.post(
       `${baseUrl}/vtop/examinations/doDigitalAssignment`,
       new URLSearchParams({
@@ -381,10 +381,10 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
         }
       }
     );
-    
+
     const $ = cheerio.load(subRes.data);
     const subjects = [];
-    
+
     $('tbody tr.tableContent').each((i, row) => {
       const cells = $(row).find('td');
       const subject = {
@@ -394,12 +394,12 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
         courseTitle: $(cells[3]).text().trim(),
         assignments: []
       };
-      
+
       if (subject.slNo && subject.classNbr) {
         subjects.push(subject);
       }
     });
-    
+
     // OPTIMIZATION: Fetch all subject assignments in PARALLEL using Promise.all
     await Promise.all(subjects.map(async (subject) => {
       try {
@@ -419,10 +419,10 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
             }
           }
         );
-        
+
         const $a = cheerio.load(aRes.data);
         const tables = $a('table.customTable');
-        
+
         if (tables.length > 1) {
           $a(tables[1]).find('tbody tr.tableContent').each((j, aRow) => {
             const aCells = $a(aRow).find('td');
@@ -437,23 +437,23 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
                   May: '05', Jun: '06', Jul: '07', Aug: '08',
                   Sep: '09', Sept: '09', Oct: '10', Nov: '11', Dec: '12'
                 };
-                
+
                 const parts = dueDateStr.split('-');
                 if (parts.length === 3) {
                   const day = parts[0];
                   const month = dateMap[parts[1]];
                   const year = parts[2];
-                  
+
                   const dueDate = new Date(`${year}-${month}-${day}`);
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   dueDate.setHours(0, 0, 0, 0);
-                  
+
                   const diffTime = dueDate - today;
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  
+
                   daysLeft = diffDays;
-                  
+
                   if (diffDays < 0) {
                     status = `${Math.abs(diffDays)} days overdue`;
                   } else if (diffDays === 0) {
@@ -474,7 +474,7 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
               daysLeft: daysLeft,
               status: status
             };
-            
+
             if (assignment.slNo && assignment.title && assignment.title !== 'Title') {
               subject.assignments.push(assignment);
             }
@@ -484,15 +484,15 @@ async function getAssignments(authData, session, sessionId, semesterId = null) {
         console.log(`[${sessionId}] Warning: Could not fetch assignments for ${subject.courseCode}`);
       }
     }));
-    
+
     // Sort logic isn't strictly needed for response speed, but you can add it here if order matters
-    
+
     const assignmentsData = { subjects };
-    
+
     if (session) {
       session.cache.assignments = { data: assignmentsData, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Assignments fetched for ${authData.authorizedID}`);
     return assignmentsData;
   } catch (error) {
@@ -511,7 +511,7 @@ async function getLoginHistory(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Login History...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/show/login/history`,
       new URLSearchParams({
@@ -527,10 +527,10 @@ async function getLoginHistory(authData, session, sessionId) {
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const loginHistory = [];
-    
+
     $('tbody tr').each((i, row) => {
       const cells = $(row).find('td');
       if (cells.length > 0) {
@@ -545,11 +545,11 @@ async function getLoginHistory(authData, session, sessionId) {
         }
       }
     });
-    
+
     if (session) {
       session.cache.loginHistory = { data: loginHistory, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Login History fetched for ${authData.authorizedID}`);
     return loginHistory.slice(0, 10);
   } catch (error) {
@@ -569,10 +569,10 @@ async function getExamSchedule(authData, session, sessionId, semesterId = null) 
     const client = getClient(sessionId);
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
-    
+
     // FIX: Dynamic Semester ID
     const currentSemId = semesterId || getDefaultSemesterId(campus);
-    
+
     await client.post(
       `${baseUrl}/vtop/examinations/StudExamSchedule`,
       new URLSearchParams({
@@ -589,7 +589,7 @@ async function getExamSchedule(authData, session, sessionId, semesterId = null) 
         }
       }
     );
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/examinations/doSearchExamScheduleForStudent`,
       new URLSearchParams({
@@ -605,27 +605,27 @@ async function getExamSchedule(authData, session, sessionId, semesterId = null) 
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const examSchedule = {
       FAT: [],
       CAT2: [],
       CAT1: []
     };
-    
+
     let currentExamType = '';
     const rows = $('tbody tr.tableContent');
-    
+
     rows.each((i, row) => {
       const cells = $(row).find('td');
-      
+
       if (cells.length === 1 && $(cells[0]).hasClass('panelHead-secondary')) {
         currentExamType = $(cells[0]).text().trim();
         return;
       }
-      
+
       if (cells.length < 13 || !currentExamType) return;
-      
+
       const examInfo = {
         slNo: $(cells[0]).text().trim(),
         courseCode: $(cells[1]).text().trim(),
@@ -641,7 +641,7 @@ async function getExamSchedule(authData, session, sessionId, semesterId = null) 
         seatLocation: $(cells[11]).find('span').text().trim() || $(cells[11]).text().trim() || '-',
         seatNo: $(cells[12]).find('span').text().trim() || $(cells[12]).text().trim() || '-'
       };
-      
+
       if (examInfo.slNo && examInfo.courseCode) {
         if (currentExamType === 'FAT') {
           examSchedule.FAT.push(examInfo);
@@ -652,11 +652,11 @@ async function getExamSchedule(authData, session, sessionId, semesterId = null) 
         }
       }
     });
-    
+
     if (session) {
       session.cache.examSchedule = { data: examSchedule, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Exam Schedule fetched for ${authData.authorizedID}`);
     return examSchedule;
   } catch (error) {
@@ -675,10 +675,10 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
     const client = getClient(sessionId);
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
-    
+
     // FIX: Dynamic Semester ID
     const currentSemId = semesterId || getDefaultSemesterId(campus);
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/processViewTimeTable`,
       new URLSearchParams({
@@ -695,16 +695,16 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         }
       }
     );
-    
+
     const $ = cheerio.load(res.data);
     const timetableData = {
       courses: [],
       schedule: {}
     };
-    
+
     const table = $('tbody').first();
     const rows = table.find('tr');
-    
+
     rows.each((i, row) => {
       const cells = $(row).find('td');
       if (cells.length < 9) return;
@@ -713,7 +713,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
       if ($(row).find('th').length > 0) return;
       const slNo = $(cells[0]).text().trim();
       if (!slNo || isNaN(parseInt(slNo))) return;
-      
+
       const courseCodeTitle = $(cells[2]).find('p').first().text().trim();
       const slotVenueCell = $(cells[7]);
       const slotVenueParts = slotVenueCell.find('p').map((i, el) => $(el).text().trim()).get();
@@ -721,13 +721,13 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
       const facNameSchoolCell = $(cells[8]);
       const facNameSchoolParts = facNameSchoolCell.find('p').map((i, el) => $(el).text().trim()).get();
       const facNameSchool = facNameSchoolParts.join(' ').replace(/\s+/g, ' ').trim();
-      
+
       if (!courseCodeTitle || courseCodeTitle === '') return;
-      
+
       const codeTitle = courseCodeTitle.split('-');
       const courseCode = codeTitle[0] ? codeTitle[0].trim() : '';
       const courseTitle = codeTitle.slice(1).join('-').trim();
-      
+
       let slot = '';
       let venue = '';
       if (slotVenue.includes('-')) {
@@ -735,7 +735,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         slot = parts[0].trim();
         venue = parts[1].trim();
       }
-      
+
       let facName = '';
       let facSchool = '';
       if (facNameSchool.includes('-')) {
@@ -743,7 +743,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         facName = parts[0].trim();
         facSchool = parts[1].trim();
       }
-      
+
       if (courseCode && slot && slot !== 'NIL' && venue !== 'NIL') {
         timetableData.courses.push({
           courseCode,
@@ -755,7 +755,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         });
       }
     });
-    
+
     const slotTimes = {
       'A1': [{ day: 'Monday', time: '08:00 - 09:00 AM' }, { day: 'Wednesday', time: '09:00 - 10:00 AM' }],
       'B1': [{ day: 'Tuesday', time: '08:00 - 09:00 AM' }, { day: 'Thursday', time: '09:00 - 10:00 AM' }],
@@ -852,7 +852,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
       'L58': [{ day: 'Friday', time: '03:51 - 05:40 PM' }],
       'L60': [{ day: 'Friday', time: '05:40 - 07:30 PM' }]
     };
-    
+
     timetableData.schedule = {
       Monday: [],
       Tuesday: [],
@@ -860,7 +860,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
       Thursday: [],
       Friday: []
     };
-    
+
     timetableData.courses.forEach(course => {
       const slots = course.slot.split('+');
       slots.forEach(slot => {
@@ -881,7 +881,7 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         }
       });
     });
-    
+
     Object.keys(timetableData.schedule).forEach(day => {
       timetableData.schedule[day].sort((a, b) => {
         const timeA = a.time.split(' - ')[0];
@@ -889,11 +889,11 @@ async function getTimetable(authData, session, sessionId, semesterId = null) {
         return timeA.localeCompare(timeB);
       });
     });
-    
+
     if (session) {
       session.cache.timetable = { data: timetableData, timestamp: Date.now() };
     }
-    
+
     console.log(`[${sessionId}] Timetable fetched for ${authData.authorizedID}`);
     return timetableData;
   } catch (error) {
@@ -910,7 +910,7 @@ async function getLeaveHistory(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Leave History...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     await client.post(
       `${baseUrl}/vtop/hostels/student/leave/1`,
       new URLSearchParams({
@@ -920,9 +920,9 @@ async function getLeaveHistory(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/hostels/student/leave/6`,
       new URLSearchParams({
@@ -934,10 +934,10 @@ async function getLeaveHistory(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/hostels/student/leave/1`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const leaveHistory = [];
-    
+
     $('#LeaveHistoryTable tbody tr').each((i, row) => {
       const allCells = $(row).find('td');
       if (allCells.length >= 7) {
@@ -956,7 +956,7 @@ async function getLeaveHistory(authData, session, sessionId) {
     });
 
     if (session) {
-        session.cache.leaveHistory = { data: leaveHistory, timestamp: Date.now() };
+      session.cache.leaveHistory = { data: leaveHistory, timestamp: Date.now() };
     }
     return leaveHistory;
   } catch (error) {
@@ -985,9 +985,9 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20252601'
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/examinations/examGradeView/doStudentGradeView`,
       new URLSearchParams({
@@ -997,38 +997,38 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20252601'
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/examinations/examGradeView/StudentGradeView`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const grades = [];
     let gpa = '';
-    
+
     const tables = $('table');
     let targetTable = null;
-    
+
     tables.each((i, table) => {
       const headerText = $(table).find('th').text();
       if (headerText.includes('Course Code') || headerText.includes('Grade')) {
         targetTable = $(table);
       }
     });
-    
+
     if (!targetTable) {
       targetTable = $('table.table-hover, table.table-bordered').first();
     }
-    
+
     targetTable.find('tbody tr').each((i, row) => {
       const cells = $(row).find('td');
-      
+
       if (cells.length === 1 && $(cells[0]).attr('colspan')) {
         gpa = $(cells[0]).text().trim();
         return;
       }
-      
+
       if (cells.length < 11) return;
-      
+
       const slNo = $(cells[0]).text().trim();
       if (!slNo || slNo === 'Sl.No.' || isNaN(parseInt(slNo))) return;
-      
+
       const grade = {
         slNo: slNo,
         courseCode: $(cells[1]).text().trim(),
@@ -1042,14 +1042,14 @@ async function getGrades(authData, session, sessionId, semesterId = 'VL20252601'
         total: $(cells[9]).text().trim(),
         grade: $(cells[10]).text().trim()
       };
-      
+
       if (grade.courseCode) {
         grades.push(grade);
       }
     });
     const gradesData = { grades, gpa };
     if (session) {
-        session.cache.grades = { data: gradesData, timestamp: Date.now() };
+      session.cache.grades = { data: gradesData, timestamp: Date.now() };
     }
     return gradesData;
   } catch (error) {
@@ -1067,7 +1067,7 @@ async function getPaymentHistory(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Payment History...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/finance/getStudentReceipts`,
       new URLSearchParams({
@@ -1077,16 +1077,16 @@ async function getPaymentHistory(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const payments = [];
     let totalAmount = 0;
-    
+
     $('table tbody tr').each((i, row) => {
       if ($(row).hasClass('table-info')) return;
-      
+
       const cells = $(row).find('td');
-      
+
       if (cells.length >= 5) {
         const payment = {
           invoiceNum: $(cells[0]).text().trim(),
@@ -1095,7 +1095,7 @@ async function getPaymentHistory(authData, session, sessionId) {
           amount: $(cells[3]).text().trim(),
           campus: $(cells[4]).text().trim()
         };
-        
+
         if (payment.invoiceNum) {
           const amountVal = parseFloat(payment.amount.replace(/,/g, '')) || 0;
           totalAmount += amountVal;
@@ -1103,13 +1103,13 @@ async function getPaymentHistory(authData, session, sessionId) {
         }
       }
     });
-    
+
     const paymentData = { payments, totalAmount };
-    
+
     if (session) {
       session.cache.paymentHistory = { data: paymentData, timestamp: Date.now() };
     }
-    
+
     return paymentData;
   } catch (error) {
     console.error(`[${sessionId}] Payment History fetch error:`, error.message);
@@ -1126,7 +1126,7 @@ async function getProctorDetails(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Proctor Details...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/proctor/viewProctorDetails`,
       new URLSearchParams({
@@ -1136,23 +1136,23 @@ async function getProctorDetails(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const proctorDetails = {};
-    
+
     $('table.table tbody tr').each((i, row) => {
       const cells = $(row).find('td');
-      
+
       if (cells.length >= 2) {
         const label = $(cells[0]).text().trim();
         const value = $(cells[1]).text().trim();
-        
+
         if (label && value && !label.includes('Image')) {
           proctorDetails[label] = value;
         }
       }
     });
-    
+
     if (session) {
       session.cache.proctorDetails = { data: proctorDetails, timestamp: Date.now() };
     }
@@ -1171,7 +1171,7 @@ async function getGradeHistory(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Grade History...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/examinations/examGradeView/StudentGradeHistory`,
       new URLSearchParams({
@@ -1181,24 +1181,24 @@ async function getGradeHistory(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
-    
+
     const gradeCount = {
       'S': 0, 'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0, 'P': 0, 'N': 0
     };
-    
+
     let totalCredits = 0;
     let earnedCredits = 0;
     const courses = [];
-    
+
     $('table.customTable tbody tr.tableContent').each((i, row) => {
       const cells = $(row).find('td');
-      
+
       if ($(row).attr('id')?.includes('detailsView') || cells.length < 9) return;
-      
+
       const slNo = $(cells[0]).text().trim();
-      
+
       if (slNo && !isNaN(slNo)) {
         const course = {
           slNo: slNo,
@@ -1211,16 +1211,16 @@ async function getGradeHistory(authData, session, sessionId) {
           resultDeclared: $(cells[7]).text().trim(),
           distribution: $(cells[8]).text().trim()
         };
-        
+
         if (course.courseCode) {
           courses.push(course);
-          
+
           const creditVal = parseFloat(course.credits) || 0;
           totalCredits += creditVal;
-          
+
           if (course.grade && course.grade !== '-' && gradeCount.hasOwnProperty(course.grade)) {
             gradeCount[course.grade]++;
-            
+
             if (course.grade !== 'F' && course.grade !== 'N') {
               earnedCredits += creditVal;
             }
@@ -1228,7 +1228,7 @@ async function getGradeHistory(authData, session, sessionId) {
         }
       }
     });
-    
+
     let cgpa = '0.00';
     $('table.table.table-hover.table-bordered tbody tr').each((i, row) => {
       const cells = $(row).find('td');
@@ -1236,7 +1236,7 @@ async function getGradeHistory(authData, session, sessionId) {
         cgpa = $(cells[2]).text().trim();
       }
     });
-    
+
     const curriculum = [];
     $('table.customTable').eq(1).find('tbody tr.tableContent').each((i, row) => {
       const cells = $(row).find('td');
@@ -1244,13 +1244,13 @@ async function getGradeHistory(authData, session, sessionId) {
         const type = $(cells[0]).find('span').first().text().trim();
         const required = $(cells[1]).text().trim();
         const earned = $(cells[2]).text().trim();
-        
+
         if (type && !type.includes('Total Credits')) {
           curriculum.push({ type, required, earned });
         }
       }
     });
-    
+
     const gradeHistoryData = {
       courses,
       gradeCount,
@@ -1259,11 +1259,11 @@ async function getGradeHistory(authData, session, sessionId) {
       cgpa,
       curriculum
     };
-    
+
     if (session) {
       session.cache.gradeHistory = { data: gradeHistoryData, timestamp: Date.now() };
     }
-    
+
     return gradeHistoryData;
   } catch (error) {
     console.error(`[${sessionId}] Grade History fetch error:`, error.message);
@@ -1280,7 +1280,7 @@ async function getCounsellingRank(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Counselling Rank...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/hostels/counsellingSlotTimings`,
       new URLSearchParams({
@@ -1290,10 +1290,10 @@ async function getCounsellingRank(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const details = {};
-    
+
     $('table.table-success tbody tr').each((i, row) => {
       const cells = $(row).find('td');
       if (cells.length === 2) {
@@ -1302,7 +1302,7 @@ async function getCounsellingRank(authData, session, sessionId) {
         details[label] = value;
       }
     });
-    
+
     if (session) {
       session.cache.counsellingRank = { data: details, timestamp: Date.now() };
     }
@@ -1318,11 +1318,11 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
     console.log(`[${sessionId}] Fetching Faculty Info for: ${facultyName}`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     if (!facultyName || facultyName.length < 3) {
       return { error: 'Please provide at least 3 characters of the faculty name', faculties: [] };
     }
-    
+
     await client.post(
       `${baseUrl}/vtop/hrms/employeeSearchForStudent`,
       new URLSearchParams({
@@ -1332,9 +1332,9 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const searchRes = await client.post(
       `${baseUrl}/vtop/hrms/EmployeeSearchForStudent`,
       new URLSearchParams({
@@ -1345,32 +1345,32 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $search = cheerio.load(searchRes.data);
     const faculties = [];
 
     $search('table tbody tr').each((i, row) => {
-        if (i === 0) return;
-        const cells = $search(row).find('td');
-        if (cells.length >= 4) {
-          const name = $search(cells[0]).text().trim();
-          const designation = $search(cells[1]).text().trim();
-          const school = $search(cells[2]).text().trim();
-          const button = $search(cells[3]).find('button');
-          const empId = button.attr('id') || button.attr('onclick')?.match(/getEmployeeIdNo\(["']([^"']+)["']\)/)?.[1];
-          if (name && empId) {
-            faculties.push({ name, designation, school, empId });
-          }
+      if (i === 0) return;
+      const cells = $search(row).find('td');
+      if (cells.length >= 4) {
+        const name = $search(cells[0]).text().trim();
+        const designation = $search(cells[1]).text().trim();
+        const school = $search(cells[2]).text().trim();
+        const button = $search(cells[3]).find('button');
+        const empId = button.attr('id') || button.attr('onclick')?.match(/getEmployeeIdNo\(["']([^"']+)["']\)/)?.[1];
+        if (name && empId) {
+          faculties.push({ name, designation, school, empId });
         }
+      }
     });
 
     if (faculties.length === 0) return { error: `No faculty found.`, faculties: [] };
     if (faculties.length > 1) return { faculties, requiresSelection: true, message: `Found ${faculties.length} faculty members.` };
 
     const selectedFaculty = faculties[0];
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const detailsRes = await client.post(
       `${baseUrl}/vtop/hrms/EmployeeSearch1ForStudent`,
       new URLSearchParams({
@@ -1384,28 +1384,28 @@ async function getFacultyInfo(authData, session, sessionId, facultyName) {
     const $ = cheerio.load(detailsRes.data);
     const details = {};
     $('table.table-bordered').first().find('tbody tr').each((i, row) => {
-        const cells = $(row).find('td');
-        if (cells.length >= 2) {
-          const label = $(cells[0]).find('b').text().trim();
-          const value = $(cells[1]).text().trim();
-          if (label && value && !label.includes('Image')) {
-            details[label] = value;
-          }
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const label = $(cells[0]).find('b').text().trim();
+        const value = $(cells[1]).text().trim();
+        if (label && value && !label.includes('Image')) {
+          details[label] = value;
         }
+      }
     });
-    
+
     const openHours = [];
     $('table.table-bordered').last().find('tbody tr').each((i, row) => {
-        const cells = $(row).find('td');
-        if (cells.length >= 2) {
-          const day = $(cells[0]).text().trim();
-          const timing = $(cells[1]).text().trim();
-          if (day && timing && day !== 'Week Day') {
-            openHours.push({ day, timing });
-          }
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const day = $(cells[0]).text().trim();
+        const timing = $(cells[1]).text().trim();
+        if (day && timing && day !== 'Week Day') {
+          openHours.push({ day, timing });
         }
+      }
     });
-    
+
     return { name: selectedFaculty.name, designation: selectedFaculty.designation, school: selectedFaculty.school, empId: selectedFaculty.empId, details, openHours };
   } catch (error) {
     console.error(`[${sessionId}] Faculty Info fetch error:`, error.message);
@@ -1418,7 +1418,7 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
     console.log(`[${sessionId}] Fetching Faculty Details for empId: ${empId}`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     const detailsRes = await client.post(
       `${baseUrl}/vtop/hrms/EmployeeSearch1ForStudent`,
       new URLSearchParams({
@@ -1429,32 +1429,32 @@ async function getFacultyDetailsByEmpId(authData, session, sessionId, empId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/hrms/employeeSearchForStudent`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(detailsRes.data);
     const details = {};
     $('table.table-bordered').first().find('tbody tr').each((i, row) => {
-        const cells = $(row).find('td');
-        if (cells.length >= 2) {
-          const label = $(cells[0]).find('b').text().trim();
-          const value = $(cells[1]).text().trim();
-          if (label && value && !label.includes('Image')) {
-            details[label] = value;
-          }
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const label = $(cells[0]).find('b').text().trim();
+        const value = $(cells[1]).text().trim();
+        if (label && value && !label.includes('Image')) {
+          details[label] = value;
         }
+      }
     });
-    
+
     const openHours = [];
     $('table.table-bordered').last().find('tbody tr').each((i, row) => {
-        const cells = $(row).find('td');
-        if (cells.length >= 2) {
-          const day = $(cells[0]).text().trim();
-          const timing = $(cells[1]).text().trim();
-          if (day && timing && day !== 'Week Day') {
-            openHours.push({ day, timing });
-          }
+      const cells = $(row).find('td');
+      if (cells.length >= 2) {
+        const day = $(cells[0]).text().trim();
+        const timing = $(cells[1]).text().trim();
+        if (day && timing && day !== 'Week Day') {
+          openHours.push({ day, timing });
         }
+      }
     });
-    
+
     return { details, openHours };
   } catch (error) {
     console.error(`[${sessionId}] Faculty Details fetch error:`, error.message);
@@ -1468,7 +1468,7 @@ async function downloadGradeHistory(authData, session, sessionId) {
     const client = getClient(sessionId);
     const campus = getCampus(sessionId);
     const baseUrl = getBaseUrl(campus);
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/examinations/examGradeView/doDownloadStudentHistory`,
       new URLSearchParams({
@@ -1485,7 +1485,7 @@ async function downloadGradeHistory(authData, session, sessionId) {
         }
       }
     );
-    
+
     console.log(`[${sessionId}] Grade History downloaded for ${authData.authorizedID}`);
     return res.data;
   } catch (error) {
@@ -1516,25 +1516,25 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     await client.post(
-        `${baseUrl}/vtop/getDateForSemesterPreview`,
-        new URLSearchParams({ _csrf: authData.csrfToken, paramReturnId: 'getDateForSemesterPreview', semSubId: currentSemId, authorizedID: authData.authorizedID }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`, 'X-Requested-With': 'XMLHttpRequest' } }
+      `${baseUrl}/vtop/getDateForSemesterPreview`,
+      new URLSearchParams({ _csrf: authData.csrfToken, paramReturnId: 'getDateForSemesterPreview', semSubId: currentSemId, authorizedID: authData.authorizedID }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     await client.post(
-        `${baseUrl}/vtop/getListForSemester`,
-        new URLSearchParams({ _csrf: authData.csrfToken, paramReturnId: 'getListForSemester', semSubId: currentSemId, classGroupId: 'ALL', authorizedID: authData.authorizedID }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`, 'X-Requested-With': 'XMLHttpRequest' } }
+      `${baseUrl}/vtop/getListForSemester`,
+      new URLSearchParams({ _csrf: authData.csrfToken, paramReturnId: 'getListForSemester', semSubId: currentSemId, classGroupId: 'ALL', authorizedID: authData.authorizedID }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/academics/common/CalendarPreview`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const months = [
       { name: 'DECEMBER', date: '01-DEC-2025', classGroup: 'ALL' },
       { name: 'JANUARY', date: '01-JAN-2026', classGroup: 'ALL' },
@@ -1542,12 +1542,12 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
       { name: 'MARCH', date: '01-MAR-2026', classGroup: 'ALL' },
       { name: 'APRIL', date: '01-APR-2026', classGroup: 'ALL' }
     ];
-    
+
     const calendar = {};
-    
+
     // OPTIMIZATION: Fetch all months in PARALLEL via Promise.all
     console.log(`[${sessionId}] Fetching ${months.length} months of calendar data concurrently...`);
-    
+
     await Promise.all(months.map(async (month) => {
       try {
         const res = await client.post(
@@ -1567,17 +1567,17 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
             }
           }
         );
-        
+
         const $ = cheerio.load(res.data);
         const events = [];
-        
+
         $('table.calendar-table tbody tr').each((i, row) => {
           if ($(row).find('th').length > 0) return;
           $(row).find('td').each((j, cell) => {
             const daySpan = $(cell).find('span').first();
             const day = daySpan.text().trim();
             if (!day || isNaN(parseInt(day))) return;
-            
+
             const greenSpans = $(cell).find('span[style*="color: green"], span[style*="color:green"]');
             if (greenSpans.length > 0) {
               greenSpans.each((k, eventSpan) => {
@@ -1602,7 +1602,7 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
             }
           });
         });
-        
+
         events.sort((a, b) => a.day - b.day);
         calendar[month.name] = events;
       } catch (error) {
@@ -1610,13 +1610,13 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
         calendar[month.name] = [];
       }
     }));
-    
+
     let totalInstructionalDays = 0;
     let totalNonInstructionalDays = 0;
     let totalHolidays = 0;
     let totalExams = 0;
     let totalEvents = 0;
-    
+
     for (const events of Object.values(calendar)) {
       totalEvents += events.length;
       events.forEach(event => {
@@ -1627,8 +1627,8 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
           totalHolidays++;
         } else if (eventLower.includes('exam') || eventLower.includes('cat') || eventLower.includes('fat')) {
           totalExams++;
-        } else if (eventLower.includes('non-instructional') || eventLower.includes('no class') || 
-                   eventLower.includes('vacation') || eventLower.includes('break')) {
+        } else if (eventLower.includes('non-instructional') || eventLower.includes('no class') ||
+          eventLower.includes('vacation') || eventLower.includes('break')) {
           totalNonInstructionalDays++;
         }
       });
@@ -1638,11 +1638,11 @@ async function getAcademicCalendar(authData, session, sessionId, semesterId = nu
       calendar,
       summary: { totalEvents, totalInstructionalDays, totalNonInstructionalDays, totalHolidays, totalExams, monthsCovered: months.length }
     };
-    
+
     if (session) {
       session.cache.academicCalendar = { data: calendarData, timestamp: Date.now() };
     }
-    
+
     return calendarData;
   } catch (error) {
     console.error(`[${sessionId}] Academic Calendar fetch error:`, error.message);
@@ -1659,7 +1659,7 @@ async function getLeaveStatus(authData, session, sessionId) {
     console.log(`[${sessionId}] Fetching Leave Status...`);
     const client = getClient(sessionId);
     const baseUrl = getBaseUrl(getCampus(sessionId));
-    
+
     await client.post(
       `${baseUrl}/vtop/hostels/student/leave/1`,
       new URLSearchParams({
@@ -1669,9 +1669,9 @@ async function getLeaveStatus(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/content`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     // OPTIMIZATION: Removed sleep(500)
-    
+
     const res = await client.post(
       `${baseUrl}/vtop/hostels/student/leave/4`,
       new URLSearchParams({
@@ -1683,10 +1683,10 @@ async function getLeaveStatus(authData, session, sessionId) {
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${baseUrl}/vtop/hostels/student/leave/1`, 'X-Requested-With': 'XMLHttpRequest' } }
     );
-    
+
     const $ = cheerio.load(res.data);
     const leaveStatus = [];
-    
+
     $('#LeaveAppliedTable tbody tr').each((i, row) => {
       const cells = $(row).find('td');
       if (cells.length >= 8) {
@@ -1704,7 +1704,7 @@ async function getLeaveStatus(authData, session, sessionId) {
     });
 
     if (session) {
-        session.cache.leaveStatus = { data: leaveStatus, timestamp: Date.now() };
+      session.cache.leaveStatus = { data: leaveStatus, timestamp: Date.now() };
     }
     return leaveStatus;
   } catch (error) {
